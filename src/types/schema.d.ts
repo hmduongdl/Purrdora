@@ -115,6 +115,17 @@ export interface MediaState {
   active_player_bus_name: string | null;
 }
 
+/** ── Media Info (matches Rust MediaInfo struct) ── */
+
+export interface MediaInfo {
+  title: string;
+  artist: string;
+  album: string;
+  art_url: string;
+  playback_status: string;
+  player_name: string;
+}
+
 /** ── Optimizer & GameMode ── */
 
 export interface PerformanceProfile {

@@ -1,12 +1,15 @@
 [package]
-name = "sp-system-monitor"
+name = "fedora-system-control"
 version = "0.1.0"
-description = "SP System Monitor - Real-time Linux hardware telemetry & control panel"
-authors = ["SP-Cybersoft"]
+description = "Fedora Linux System Control & Monitoring Dashboard"
+authors = ["hoangminhduong"]
+license = "MIT"
+repository = ""
 edition = "2021"
+rust-version = "1.77.2"
 
 [lib]
-name = "sp_system_monitor_lib"
+name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -14,13 +17,13 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+tauri-plugin-log = "2"
 tauri-plugin-shell = "2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-
-[profile.release]
-panic = "abort"
-codegen-units = 1
-lto = true
-opt-level = "s"
-strip = true
+tauri-plugin-fs = "2"
+tauri-plugin-process = "2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sysinfo = "0.30"
+tokio = { version = "1", features = ["full"] }
+zbus = "4.0"
+log = "0.4"
