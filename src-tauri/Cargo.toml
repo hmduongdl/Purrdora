@@ -1,7 +1,7 @@
 [package]
-name = "fedora-system-control"
+name = "purrdora"
 version = "0.1.0"
-description = "Fedora Linux System Control & Monitoring Dashboard"
+description = "Purrdora - Fedora Linux System Control & Monitoring Dashboard"
 authors = ["hoangminhduong"]
 license = "MIT"
 repository = ""

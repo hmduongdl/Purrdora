@@ -25,6 +25,8 @@ pub struct MediaInfo {
     pub art_url: String,
     pub playback_status: String,
     pub player_name: String,
+    pub position_seconds: f64,
+    pub length_seconds: f64,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -34,6 +36,8 @@ struct PlayerState {
     album: String,
     art_url: String,
     playback_status: String,
+    position_microseconds: i64,
+    length_microseconds: i64,
 }
 
 pub struct MprisShutdown(watch::Sender<bool>);
@@ -46,7 +50,17 @@ impl MprisShutdown {
 
 pub fn start(ipc: IpcEmitter) -> MprisShutdown {
     let (tx, rx) = watch::channel(false);
-    tokio::spawn(run(ipc, rx));
+    // `setup` can run before Tauri has installed its async runtime.  MPRIS
+    // owns a long-lived zbus connection, so give it a dedicated Tokio runtime
+    // instead of spawning from whichever thread happens to call `start`.
+    std::thread::Builder::new()
+        .name("mpris-listener".into())
+        .spawn(move || {
+            let runtime = tokio::runtime::Runtime::new()
+                .expect("failed to create Tokio runtime for MPRIS listener");
+            runtime.block_on(run(ipc, rx));
+        })
+        .expect("failed to start MPRIS listener thread");
     MprisShutdown(tx)
 }
 
@@ -130,6 +144,7 @@ async fn load_player(connection: &Connection, bus_name: &str) -> Option<PlayerSt
         .get_property("PlaybackStatus")
         .await
         .unwrap_or_default();
+    state.position_microseconds = proxy.get_property("Position").await.unwrap_or_default();
     Some(state)
 }
 
@@ -149,11 +164,17 @@ fn apply_changes(state: &mut PlayerState, changed: &HashMap<String, OwnedValue>)
                 if let Some(v) = metadata.get("mpris:artUrl").and_then(string_value) {
                     state.art_url = normalize_art_url(&v);
                 }
+                if let Some(v) = metadata.get("mpris:length").and_then(integer_value) {
+                    state.length_microseconds = v;
+                }
             }
         }
     }
     if let Some(v) = changed.get("PlaybackStatus").and_then(string_value) {
         state.playback_status = v;
+    }
+    if let Some(v) = changed.get("Position").and_then(integer_value) {
+        state.position_microseconds = v;
     }
 }
 
@@ -170,6 +191,9 @@ fn apply_metadata(state: &mut PlayerState, metadata: &HashMap<String, OwnedValue
     if let Some(v) = metadata.get("mpris:artUrl").and_then(string_value) {
         state.art_url = normalize_art_url(&v);
     }
+    if let Some(v) = metadata.get("mpris:length").and_then(integer_value) {
+        state.length_microseconds = v;
+    }
 }
 
 fn string_value(value: &OwnedValue) -> Option<String> {
@@ -179,6 +203,85 @@ fn string_array(value: &OwnedValue) -> Option<String> {
     Vec::<String>::try_from(value.try_clone().ok()?)
         .ok()
         .map(|v| v.join(", "))
+}
+fn integer_value(value: &OwnedValue) -> Option<i64> {
+    i64::try_from(value.try_clone().ok()?).ok()
+}
+
+async fn active_player_name(connection: &Connection) -> zbus::Result<String> {
+    let dbus = DBusProxy::new(connection).await?;
+    let mut fallback = None;
+    for name in dbus.list_names().await? {
+        let name = name.to_string();
+        if !name.starts_with(PREFIX) {
+            continue;
+        }
+        fallback.get_or_insert_with(|| name.clone());
+        let proxy = Proxy::new(connection, name.as_str(), PATH, PLAYER_IFACE).await?;
+        let status: String = proxy
+            .get_property("PlaybackStatus")
+            .await
+            .unwrap_or_default();
+        if status == "Playing" {
+            return Ok(name);
+        }
+    }
+    fallback.ok_or_else(|| zbus::Error::Failure("No MPRIS player available".into()))
+}
+
+async fn player_command(method: &str) -> Result<(), String> {
+    let connection = Connection::session()
+        .await
+        .map_err(|error| error.to_string())?;
+    let name = active_player_name(&connection)
+        .await
+        .map_err(|error| error.to_string())?;
+    let proxy = Proxy::new(&connection, name, PATH, PLAYER_IFACE)
+        .await
+        .map_err(|error| error.to_string())?;
+    proxy
+        .call_method(method, &())
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn media_play_pause() -> Result<(), String> {
+    player_command("PlayPause").await
+}
+
+#[tauri::command]
+pub async fn media_next() -> Result<(), String> {
+    player_command("Next").await
+}
+
+#[tauri::command]
+pub async fn media_previous() -> Result<(), String> {
+    player_command("Previous").await
+}
+
+#[tauri::command]
+pub async fn seek_media(position_seconds: f64) -> Result<(), String> {
+    let connection = Connection::session()
+        .await
+        .map_err(|error| error.to_string())?;
+    let name = active_player_name(&connection)
+        .await
+        .map_err(|error| error.to_string())?;
+    let proxy = Proxy::new(&connection, name, PATH, PLAYER_IFACE)
+        .await
+        .map_err(|error| error.to_string())?;
+    let current: i64 = proxy
+        .get_property("Position")
+        .await
+        .map_err(|error| error.to_string())?;
+    let target = (position_seconds.max(0.0) * 1_000_000.0).round() as i64;
+    proxy
+        .call_method("Seek", &(target.saturating_sub(current)))
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 /// Only safe webview-loadable schemes are forwarded. Local artwork uses the
@@ -211,6 +314,8 @@ fn emit_current(ipc: &IpcEmitter, players: &HashMap<String, PlayerState>) {
         art_url: p.art_url.clone(),
         playback_status: p.playback_status.clone(),
         player_name: name.clone(),
+        position_seconds: (p.position_microseconds.max(0) as f64) / 1_000_000.0,
+        length_seconds: (p.length_microseconds.max(0) as f64) / 1_000_000.0,
     });
     let _ = ipc.emit_latest("media-update", &info);
 }

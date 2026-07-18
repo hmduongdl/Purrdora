@@ -1,89 +1,29 @@
-import { memo } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { useEffect, useRef, useState, memo } from "react";
+import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { useSystemStore } from "../../store/useSystemStore";
 import { WidgetFactory } from "./factory";
+import { MetricBar } from "../ui/MetricBar";
 
-const COLORS = {
-  used: "#00F0FF",
-  free: "#2A2B3C",
-  swap: "#FF00AA",
-};
+interface RamPoint { time: number; usage: number; }
 
 export const RamWidget = memo(function RamWidget() {
   const telemetry = useSystemStore((s) => s.telemetry);
   const ram = telemetry?.ram;
+  const [history, setHistory] = useState<RamPoint[]>([]);
+  const lastTs = useRef(0);
 
-  if (!ram) {
-    return (
-      <WidgetFactory title="RAM">
-        <p className="text-[10px] text-[#555577]">Waiting for data...</p>
-      </WidgetFactory>
-    );
-  }
+  useEffect(() => {
+    if (!telemetry || telemetry.timestamp_ms === lastTs.current) return;
+    lastTs.current = telemetry.timestamp_ms;
+    setHistory((prev) => [...prev, { time: telemetry.timestamp_ms, usage: telemetry.ram.usage_percent }].slice(-30));
+  }, [telemetry]);
 
-  const used = ram.used_gb;
-  const free = ram.free_gb;
-  const swapUsed = ram.swap_used_gb;
-
-  const data = [
-    { name: "Used", value: used, color: COLORS.used },
-    { name: "Free", value: free, color: COLORS.free },
-    { name: "Swap", value: swapUsed, color: COLORS.swap },
-  ].filter((d) => d.value > 0);
-
-  return (
-    <WidgetFactory title={`RAM — ${ram.usage_percent.toFixed(0)}%`}>
-      <div className="flex items-center h-full gap-3">
-        {/* Donut */}
-        <div className="w-[110px] h-[110px] flex-shrink-0">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                innerRadius={30}
-                outerRadius={48}
-                paddingAngle={2}
-                dataKey="value"
-                stroke="transparent"
-                isAnimationActive={false}
-              >
-                {data.map((entry) => (
-                  <Cell key={entry.name} fill={entry.color} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Legend */}
-        <div className="flex flex-col gap-1.5 text-[10px]">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: COLORS.used }} />
-            <span className="text-[#8888AA]">Used</span>
-            <span className="font-mono text-[#E0E0F0] ml-auto">{used.toFixed(1)} GB</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: COLORS.free }} />
-            <span className="text-[#8888AA]">Free</span>
-            <span className="font-mono text-[#E0E0F0] ml-auto">{free.toFixed(1)} GB</span>
-          </div>
-          {swapUsed > 0 && (
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: COLORS.swap }} />
-              <span className="text-[#8888AA]">Swap</span>
-              <span className="font-mono text-[#E0E0F0] ml-auto">
-                {swapUsed.toFixed(1)} / {ram.swap_total_gb.toFixed(1)} GB
-              </span>
-            </div>
-          )}
-          <div className="border-t border-[#2A2B3C] mt-0.5 pt-0.5">
-            <span className="text-[#555577]">Total: </span>
-            <span className="font-mono text-[#E0E0F0]">{ram.total_gb.toFixed(1)} GB</span>
-          </div>
-        </div>
-      </div>
-    </WidgetFactory>
-  );
+  return <WidgetFactory title="MEMORY / RAM">
+    {ram ? <>
+      <div className="flex items-start justify-between gap-2"><div><div className="text-[24px] font-medium leading-none text-[#E9D5FF]">{ram.usage_percent.toFixed(0)}<span className="text-sm text-[#A855F7]">%</span></div><div className="mt-1 text-[10px] text-[#777797]">{ram.used_gb.toFixed(1)} / {ram.total_gb.toFixed(1)} GB used</div></div><div className="text-right text-[10px] text-[#777797]">Free<br /><span className="font-mono text-[#D9D9EA]">{ram.free_gb.toFixed(1)} GB</span></div></div>
+      <div className="mt-2"><MetricBar label="RAM" value={ram.used_gb} max={ram.total_gb} unit=" GB" colorClass="bg-[#EC4899]" /></div>
+      <div className="mt-2 rounded-md border border-[#292A3C] bg-[#0E0F16] px-1.5"><ResponsiveContainer width="100%" height={40}><AreaChart data={history.length ? history : [{ time: 0, usage: ram.usage_percent }]} margin={{ top: 3, right: 0, bottom: 2, left: 0 }}><defs><linearGradient id="ramGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#EC4899" stopOpacity={0.4} /><stop offset="100%" stopColor="#EC4899" stopOpacity={0.02} /></linearGradient></defs><Area type="monotone" dataKey="usage" stroke="#EC4899" strokeWidth={1.5} fill="url(#ramGrad)" isAnimationActive={false} dot={false} /></AreaChart></ResponsiveContainer></div>
+      <div className="mt-2 grid grid-cols-2 gap-1.5 text-[10px]"><div className="metric-tile"><span>Swap</span><strong>{ram.swap_used_gb.toFixed(1)} GB</strong></div><div className="metric-tile"><span>Capacity</span><strong>{ram.total_gb.toFixed(1)} GB</strong></div></div>
+    </> : <div className="skeleton h-24 w-full" />}
+  </WidgetFactory>;
 });

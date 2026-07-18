@@ -8,24 +8,33 @@
 use std::{
     borrow::Cow,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, Mutex,
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use serde::Serialize;
 use sysinfo::{Networks, System};
 use tauri::AppHandle;
+use tokio::net::TcpStream;
 
 use crate::ipc::IpcEmitter;
 
 const TELEMETRY_INTERVAL: Duration = Duration::from_secs(1);
+const LATENCY_INTERVAL: Duration = Duration::from_secs(5);
+const LATENCY_TIMEOUT: Duration = Duration::from_secs(1);
+const LATENCY_TARGET: &str = "1.1.1.1:443";
+const OUTPUT_SCAN_INTERVAL: Duration = Duration::from_secs(5);
 
 #[derive(Clone)]
 pub struct TelemetryEngine {
     system: Arc<Mutex<System>>,
     networks: Arc<Mutex<Networks>>,
+    latency_ms: Arc<Mutex<Option<f64>>>,
+    active_output: Arc<Mutex<Option<String>>>,
+    started_at: Instant,
+    profile_switches: Arc<AtomicU64>,
     started: Arc<AtomicBool>,
 }
 
@@ -41,8 +50,16 @@ impl TelemetryEngine {
         Self {
             system: Arc::new(Mutex::new(system)),
             networks: Arc::new(Mutex::new(Networks::new_with_refreshed_list())),
+            latency_ms: Arc::new(Mutex::new(None)),
+            active_output: Arc::new(Mutex::new(None)),
+            started_at: Instant::now(),
+            profile_switches: Arc::new(AtomicU64::new(0)),
             started: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    pub fn record_profile_switch(&self) {
+        self.profile_switches.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Start exactly one periodic worker for this engine.
@@ -53,6 +70,53 @@ impl TelemetryEngine {
 
         let system = Arc::clone(&self.system);
         let networks = Arc::clone(&self.networks);
+        let latency_ms = Arc::clone(&self.latency_ms);
+        let active_output = Arc::clone(&self.active_output);
+
+        // Keep latency checks independent of the one-second sysinfo loop. A
+        // TCP handshake is a portable, non-privileged latency probe and avoids
+        // spawning `ping` processes in the background.
+        tauri::async_runtime::spawn(async move {
+            let mut interval = tokio::time::interval(LATENCY_INTERVAL);
+            loop {
+                interval.tick().await;
+                let started_at = Instant::now();
+                let sample =
+                    match tokio::time::timeout(LATENCY_TIMEOUT, TcpStream::connect(LATENCY_TARGET))
+                        .await
+                    {
+                        Ok(Ok(_)) => Some(started_at.elapsed().as_secs_f64() * 1_000.0),
+                        _ => None,
+                    };
+
+                match latency_ms.lock() {
+                    Ok(mut latency) => *latency = sample,
+                    Err(_) => break,
+                }
+            }
+        });
+
+        // Output discovery is comparatively expensive and compositor-specific,
+        // so keep it out of the one-second sysinfo loop and cache the result.
+        tauri::async_runtime::spawn(async move {
+            let mut interval = tokio::time::interval(OUTPUT_SCAN_INTERVAL);
+            loop {
+                interval.tick().await;
+                let output = tokio::task::spawn_blocking(active_display_output)
+                    .await
+                    .ok()
+                    .flatten();
+                match active_output.lock() {
+                    Ok(mut current_output) => *current_output = output,
+                    Err(_) => break,
+                }
+            }
+        });
+
+        let latency_ms = Arc::clone(&self.latency_ms);
+        let active_output = Arc::clone(&self.active_output);
+        let started_at = self.started_at;
+        let profile_switches = Arc::clone(&self.profile_switches);
 
         tauri::async_runtime::spawn(async move {
             let mut interval = tokio::time::interval(TELEMETRY_INTERVAL);
@@ -79,7 +143,22 @@ impl TelemetryEngine {
                 networks_guard.refresh_list();
                 networks_guard.refresh();
 
-                let telemetry = collect_telemetry(&system, &networks_guard);
+                let latest_latency_ms = match latency_ms.lock() {
+                    Ok(latency) => *latency,
+                    Err(_) => break,
+                };
+                let output = match active_output.lock() {
+                    Ok(output) => output.clone(),
+                    Err(_) => break,
+                };
+                let telemetry = collect_telemetry(
+                    &system,
+                    &networks_guard,
+                    latest_latency_ms,
+                    output,
+                    started_at.elapsed().as_secs(),
+                    profile_switches.load(Ordering::Relaxed),
+                );
                 if !ipc.emit_latest("system-tick", &telemetry) {
                     log::debug!("telemetry event queue stopped");
                     break;
@@ -96,6 +175,7 @@ pub struct SystemTelemetry<'a> {
     pub gpus: Vec<GpuMetrics<'a>>,
     pub ram: RamMetrics,
     pub network: NetworkMetrics<'a>,
+    pub session: SessionMetrics,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -137,6 +217,7 @@ pub struct RamMetrics {
 #[derive(Clone, Debug, Serialize)]
 pub struct NetworkMetrics<'a> {
     pub interfaces: Vec<NetworkInterface<'a>>,
+    pub latency_ms: Option<f64>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -148,11 +229,26 @@ pub struct NetworkInterface<'a> {
     pub total_tx_gb: f64,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct SessionMetrics {
+    pub system_uptime_seconds: u64,
+    pub dashboard_runtime_seconds: u64,
+    pub active_output: Option<String>,
+    pub profile_switches: u64,
+}
+
 fn gb(bytes: u64) -> f64 {
     bytes as f64 / 1_073_741_824.0
 }
 
-fn collect_telemetry<'a>(system: &'a System, networks: &'a Networks) -> SystemTelemetry<'a> {
+fn collect_telemetry<'a>(
+    system: &'a System,
+    networks: &'a Networks,
+    latency_ms: Option<f64>,
+    active_output: Option<String>,
+    dashboard_runtime_seconds: u64,
+    profile_switches: u64,
+) -> SystemTelemetry<'a> {
     let cpus = system.cpus();
     let (name, vendor) = cpus
         .first()
@@ -204,6 +300,45 @@ fn collect_telemetry<'a>(system: &'a System, networks: &'a Networks) -> SystemTe
                     total_tx_gb: gb(network.total_transmitted()),
                 })
                 .collect(),
+            latency_ms,
+        },
+        session: SessionMetrics {
+            system_uptime_seconds: System::uptime(),
+            dashboard_runtime_seconds,
+            active_output,
+            profile_switches,
         },
     }
+}
+
+fn active_display_output() -> Option<String> {
+    if let Ok(wlr_output) = std::process::Command::new("wlr-randr").output() {
+        if wlr_output.status.success() {
+            if let Some(output) = String::from_utf8_lossy(&wlr_output.stdout)
+                .lines()
+                .find_map(parse_wlr_output)
+            {
+                return Some(output);
+            }
+        }
+    }
+
+    let xrandr_output = std::process::Command::new("xrandr").output().ok()?;
+    if !xrandr_output.status.success() {
+        return None;
+    }
+    let outputs = String::from_utf8_lossy(&xrandr_output.stdout);
+    outputs
+        .lines()
+        .find(|line| line.contains(" connected primary"))
+        .or_else(|| outputs.lines().find(|line| line.contains(" connected")))
+        .and_then(|line| line.split_whitespace().next().map(str::to_owned))
+}
+
+fn parse_wlr_output(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    if !(trimmed.contains(" enabled") || trimmed.contains("(enabled)")) {
+        return None;
+    }
+    trimmed.split_whitespace().next().map(str::to_owned)
 }

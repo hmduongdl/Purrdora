@@ -1,6 +1,10 @@
-# Fedora System Control
+# <picture><source media="(prefers-color-scheme: dark)" srcset="./assets/logo.png"><img alt="Purrdora" src="./assets/logo.png" width="64" align="left" style="margin-right: 12px"></picture> Purrdora
 
 Dashboard giám sát & điều khiển hệ thống dành cho Fedora Linux, xây dựng với Tauri v2 + React.
+
+<p align="center">
+  <img alt="Purrdora Logo" src="./assets/logo.png" width="200">
+</p>
 
 ## Tính năng
 
@@ -52,6 +56,8 @@ File cài đặt sẽ nằm trong `src-tauri/target/release/bundle/`.
 ## Cấu trúc dự án
 
 ```
+├── assets/                  # Logo & assets
+│   └── logo.png
 ├── src/                     # Frontend React
 │   ├── App.tsx              # Entry point
 │   ├── components/

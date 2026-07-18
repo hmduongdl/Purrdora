@@ -1,5 +1,9 @@
-use serde::Deserialize;
-use std::fs;
+use serde::{Deserialize, Serialize};
+use std::{
+    fs,
+    process::{Child, Command},
+    sync::Mutex,
+};
 use zbus::proxy;
 
 #[derive(Debug, Deserialize)]
@@ -8,6 +12,36 @@ pub enum PowerProfile {
     PowerSaver,
     Balanced,
     Performance,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ToggleResult {
+    pub active: bool,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ShutdownTimerResult {
+    pub active: bool,
+    pub minutes: Option<u32>,
+    pub message: String,
+}
+
+pub struct KeepAwakeState(Mutex<Option<Child>>);
+
+impl KeepAwakeState {
+    pub fn new() -> Self {
+        Self(Mutex::new(None))
+    }
+
+    pub fn stop(&self) {
+        if let Ok(mut inhibitor) = self.0.lock() {
+            if let Some(mut child) = inhibitor.take() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+    }
 }
 
 impl PowerProfile {
@@ -46,7 +80,10 @@ trait GameMode {
 }
 
 #[tauri::command]
-pub async fn set_power_profile(profile: PowerProfile) -> Result<String, String> {
+pub async fn set_power_profile(
+    profile: PowerProfile,
+    telemetry: tauri::State<'_, crate::monitor::TelemetryEngine>,
+) -> Result<String, String> {
     let connection = zbus::Connection::system()
         .await
         .map_err(|e| format!("power profile system bus unavailable: {e}"))?;
@@ -57,10 +94,12 @@ pub async fn set_power_profile(profile: PowerProfile) -> Result<String, String> 
         .set_profile(profile.as_dbus_value())
         .await
         .map_err(|e| format!("power profile rejected: {e}"))?;
-    proxy
+    let active_profile = proxy
         .active_profile()
         .await
-        .map_err(|e| format!("power profile could not be verified: {e}"))
+        .map_err(|e| format!("power profile could not be verified: {e}"))?;
+    telemetry.record_profile_switch();
+    Ok(active_profile)
 }
 
 #[tauri::command]
@@ -111,4 +150,131 @@ pub fn clear_ram_cache() -> Result<String, String> {
     fs::write("/proc/sys/vm/drop_caches", b"3\n")
         .map_err(|e| format!("drop caches denied by the OS: {e}"))?;
     Ok("RAM cache dropped".to_owned())
+}
+
+#[tauri::command]
+pub fn toggle_do_not_disturb() -> Result<ToggleResult, String> {
+    let output = Command::new("gsettings")
+        .args(["get", "org.gnome.desktop.notifications", "show-banners"])
+        .output()
+        .map_err(|error| format!("GNOME notification settings unavailable: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "could not read GNOME notification setting: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+
+    let banners_visible = match String::from_utf8_lossy(&output.stdout).trim() {
+        "true" => true,
+        "false" => false,
+        value => return Err(format!("unexpected GNOME notification setting: {value}")),
+    };
+    let do_not_disturb = banners_visible;
+    let status = Command::new("gsettings")
+        .args([
+            "set",
+            "org.gnome.desktop.notifications",
+            "show-banners",
+            if do_not_disturb { "false" } else { "true" },
+        ])
+        .status()
+        .map_err(|error| format!("could not update GNOME notification setting: {error}"))?;
+    if !status.success() {
+        return Err("GNOME rejected the Do Not Disturb change".to_owned());
+    }
+
+    Ok(ToggleResult {
+        active: do_not_disturb,
+        message: if do_not_disturb {
+            "Do Not Disturb enabled"
+        } else {
+            "Do Not Disturb disabled"
+        }
+        .to_owned(),
+    })
+}
+
+#[tauri::command]
+pub fn toggle_keep_awake(state: tauri::State<'_, KeepAwakeState>) -> Result<ToggleResult, String> {
+    let mut inhibitor = state
+        .0
+        .lock()
+        .map_err(|_| "Keep Awake state is unavailable".to_owned())?;
+
+    if let Some(child) = inhibitor.as_mut() {
+        match child.try_wait() {
+            Ok(None) => {
+                child
+                    .kill()
+                    .map_err(|error| format!("could not stop Keep Awake inhibitor: {error}"))?;
+                let _ = child.wait();
+                *inhibitor = None;
+                return Ok(ToggleResult {
+                    active: false,
+                    message: "Keep Awake disabled".to_owned(),
+                });
+            }
+            Ok(Some(_)) => *inhibitor = None,
+            Err(error) => return Err(format!("could not inspect Keep Awake inhibitor: {error}")),
+        }
+    }
+
+    let child = Command::new("systemd-inhibit")
+        .args([
+            "--what=idle:sleep",
+            "--mode=block",
+            "--why=Purrdora Keep Awake",
+            "sleep",
+            "infinity",
+        ])
+        .spawn()
+        .map_err(|error| format!("could not start systemd inhibitor: {error}"))?;
+    *inhibitor = Some(child);
+
+    Ok(ToggleResult {
+        active: true,
+        message: "Keep Awake enabled".to_owned(),
+    })
+}
+
+#[tauri::command]
+pub fn set_shutdown_timer(minutes: Option<u32>) -> Result<ShutdownTimerResult, String> {
+    match minutes {
+        Some(minutes) if (1..=1_440).contains(&minutes) => {
+            let output = Command::new("shutdown")
+                .args(["-h", &format!("+{minutes}")])
+                .output()
+                .map_err(|error| format!("could not schedule shutdown: {error}"))?;
+            if !output.status.success() {
+                return Err(format!(
+                    "shutdown schedule rejected: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ));
+            }
+            Ok(ShutdownTimerResult {
+                active: true,
+                minutes: Some(minutes),
+                message: format!("Shutdown scheduled in {minutes} minutes"),
+            })
+        }
+        Some(_) => Err("shutdown timer must be between 1 and 1,440 minutes".to_owned()),
+        None => {
+            let output = Command::new("shutdown")
+                .arg("-c")
+                .output()
+                .map_err(|error| format!("could not cancel shutdown: {error}"))?;
+            if !output.status.success() {
+                return Err(format!(
+                    "shutdown cancellation rejected: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ));
+            }
+            Ok(ShutdownTimerResult {
+                active: false,
+                minutes: None,
+                message: "Scheduled shutdown cancelled".to_owned(),
+            })
+        }
+    }
 }

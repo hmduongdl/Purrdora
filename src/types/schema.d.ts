@@ -44,6 +44,24 @@ export interface NetworkInterface {
 
 export interface NetworkMetrics {
   interfaces: NetworkInterface[];
+  /** TCP handshake latency to the monitor probe, or null while offline. */
+  latency_ms: number | null;
+}
+
+/** Derived client-side samples from the `system-tick` network payload. */
+export interface NetworkHistoryPoint {
+  timestamp_ms: number;
+  download_bytes_per_sec: number;
+  upload_bytes_per_sec: number;
+  latency_ms: number | null;
+}
+
+/** Derived client-side samples from CPU/RAM/ping fields in `system-tick`. */
+export interface PerformanceHistoryPoint {
+  timestamp_ms: number;
+  cpu_percent: number;
+  ram_percent: number;
+  latency_ms: number | null;
 }
 
 export interface SystemTelemetry {
@@ -52,6 +70,14 @@ export interface SystemTelemetry {
   gpus: GpuMetrics[];
   ram: RamMetrics;
   network: NetworkMetrics;
+  session: SessionMetrics;
+}
+
+export interface SessionMetrics {
+  system_uptime_seconds: number;
+  dashboard_runtime_seconds: number;
+  active_output: string | null;
+  profile_switches: number;
 }
 
 /** ── Audio State (PipeWire / WirePlumber Mixer) ── */
@@ -124,6 +150,8 @@ export interface MediaInfo {
   art_url: string;
   playback_status: string;
   player_name: string;
+  position_seconds: number;
+  length_seconds: number;
 }
 
 /** ── Optimizer & GameMode ── */
@@ -138,4 +166,30 @@ export interface PerformanceProfile {
 export interface AppSettings {
   refresh_interval_ms: number;
   active_profile: PerformanceProfile;
+}
+
+/** Frontend state for optimizer toggles. */
+export interface SystemControlState {
+  is_gamemode_active: boolean;
+  is_do_not_disturb_active: boolean;
+  is_keep_awake_active: boolean;
+}
+
+/** Matches Rust `ToggleResult` returned by DND and Keep Awake commands. */
+export interface ControlToggleResult {
+  active: boolean;
+  message: string;
+}
+
+/** Frontend state for the shutdown schedule; timestamp is client-side. */
+export interface ShutdownTimerState {
+  minutes: number | null;
+  scheduled_at_ms: number | null;
+}
+
+/** Matches Rust `ShutdownTimerResult` returned by `set_shutdown_timer`. */
+export interface ShutdownTimerResult {
+  active: boolean;
+  minutes: number | null;
+  message: string;
 }

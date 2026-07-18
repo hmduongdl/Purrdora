@@ -34,6 +34,13 @@ pub fn run() {
             optimizer::toggle_gamemode,
             optimizer::check_gamemode_status,
             optimizer::clear_ram_cache,
+            optimizer::toggle_do_not_disturb,
+            optimizer::toggle_keep_awake,
+            optimizer::set_shutdown_timer,
+            mpris::media_play_pause,
+            mpris::media_next,
+            mpris::media_previous,
+            mpris::seek_media,
         ])
         .setup(|app| {
             let ipc = IpcEmitter::start(app.handle().clone());
@@ -42,6 +49,7 @@ pub fn run() {
             telemetry.start(app.handle().clone(), ipc.clone());
             app.manage(ipc);
             app.manage(telemetry);
+            app.manage(optimizer::KeepAwakeState::new());
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -65,6 +73,9 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event {
                 if let Some(shutdown) = app.try_state::<mpris::MprisShutdown>() {
                     shutdown.shutdown();
+                }
+                if let Some(keep_awake) = app.try_state::<optimizer::KeepAwakeState>() {
+                    keep_awake.stop();
                 }
             }
         });

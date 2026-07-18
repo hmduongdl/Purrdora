@@ -1,4 +1,5 @@
 import { useRef, useCallback, useState, useEffect, memo } from "react";
+import { StatusPill } from "./ui/StatusPill";
 
 /* ── Speaker icon SVGs (matching macOS Control Center style) ── */
 
@@ -108,6 +109,7 @@ export const VolumeSlider = memo(function VolumeSlider({
       >
         {isMuted ? <SpeakerOff /> : localValue > 50 ? <SpeakerHigh /> : <SpeakerLow />}
       </button>
+      <StatusPill label={isMuted ? "Muted" : "Unmuted"} active={!isMuted} />
 
       {/* Slider track */}
       <div
@@ -119,7 +121,7 @@ export const VolumeSlider = memo(function VolumeSlider({
         className="relative cursor-pointer"
         style={{
           width: 24,
-          height: 140,
+          height: 88,
           borderRadius: 12,
           background: trackBg,
         }}
