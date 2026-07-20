@@ -7,10 +7,18 @@ function formatTime(seconds: number) {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
+// MPRIS clients often expose YouTube's 480px `hqdefault` image. Prefer the
+// 1280px version when it exists, with a transparent fallback for older videos.
+function preferredArtworkUrl(url: string) {
+  return /(^https?:\/\/i\.ytimg\.com\/vi\/[^/]+\/)hqdefault\.jpg(?:\?.*)?$/i.test(url)
+    ? url.replace(/hqdefault\.jpg/i, "maxresdefault.jpg")
+    : url;
+}
+
 function MediaSkeleton() {
   return (
     <div
-      className="glass-panel flex flex-col justify-between"
+      className="adaptive-card media-player-widget glass-panel flex flex-col justify-between"
       style={{
         padding: "clamp(10px, 1.2vh, 16px)",
         gap: "clamp(8px, 1vh, 12px)",
@@ -68,7 +76,7 @@ const MediaPlayerWidget = memo(function MediaPlayerWidget() {
     }
     return (
       <div
-        className="glass-panel flex flex-col justify-between"
+        className="adaptive-card media-player-widget glass-panel flex flex-col justify-between"
         style={{
           padding: "clamp(10px, 1.2vh, 16px)",
           gap: "clamp(8px, 1vh, 12px)",
@@ -82,7 +90,7 @@ const MediaPlayerWidget = memo(function MediaPlayerWidget() {
           <Music2 size={20} className="text-slate-600 mb-1" />
           <p className="text-[10px] text-slate-400 font-medium">Không có trình phát hoạt động</p>
           <p className="text-[9px] text-slate-500 leading-normal mt-0.5">
-            Bật nhạc từ Spotify, trình duyệt, v.v.
+            Phát nhạc từ Spotify, trình duyệt hoặc ứng dụng hỗ trợ
           </p>
         </div>
         <div className="flex justify-center items-center gap-[clamp(16px,2vh,24px)] pt-0.5 opacity-25 pointer-events-none">
@@ -106,7 +114,7 @@ const MediaPlayerWidget = memo(function MediaPlayerWidget() {
 
   return (
     <div
-      className="glass-panel flex flex-col justify-between"
+      className="adaptive-card media-player-widget glass-panel flex flex-col justify-between"
       style={{
         padding: "clamp(10px, 1.2vh, 16px)",
         gap: "clamp(8px, 1vh, 12px)",
@@ -118,20 +126,27 @@ const MediaPlayerWidget = memo(function MediaPlayerWidget() {
       </div>
 
       {/* Album art + track info */}
-      <div className="flex gap-[clamp(10px,1.2vw,16px)]">
-        <div className="h-[clamp(48px,6vh,64px)] w-[clamp(48px,6vh,64px)] shrink-0 overflow-hidden rounded border border-white/5 shadow-lg">
+      <div className="media-track-layout flex gap-[clamp(10px,1.2vw,16px)]">
+        <div className="media-artwork h-[clamp(48px,6vh,64px)] w-[clamp(48px,6vh,64px)] shrink-0 overflow-hidden rounded border border-white/5 shadow-lg">
           {media.art_url ? (
-            <img src={media.art_url} alt={media.title || "Album art"} className="h-full w-full object-cover" />
+            <img
+              src={preferredArtworkUrl(media.art_url)}
+              alt={media.title || "Album art"}
+              className="h-full w-full object-cover"
+              onError={(event) => {
+                if (event.currentTarget.src !== media.art_url) event.currentTarget.src = media.art_url;
+              }}
+            />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-[#1A1B2C] text-xl text-slate-600">
               ♫
             </div>
           )}
         </div>
-        <div className="min-w-0 flex-1 flex flex-col justify-between">
-          <div>
-            <p className="truncate text-[12px] md:text-[13px] font-bold leading-tight">{media.title || "Unknown Title"}</p>
-            <p className="truncate text-[10px] text-on-surface-variant leading-normal mt-0.5">
+        <div className="media-track-details min-w-0 flex-1 flex flex-col justify-between">
+          <div className="media-track-copy">
+            <p className="media-track-title truncate text-[12px] md:text-[13px] font-bold leading-tight">{media.title || "Unknown Title"}</p>
+            <p className="media-track-artist truncate text-[10px] text-on-surface-variant leading-normal mt-0.5">
               {media.artist || "Unknown Artist"}
             </p>
           </div>

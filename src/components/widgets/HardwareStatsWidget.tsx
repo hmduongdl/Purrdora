@@ -26,7 +26,7 @@ export function HardwareStatsWidget() {
   );
 
   return (
-    <WidgetFactory title="THÔNG SỐ PHẦN CỨNG">
+    <WidgetFactory title="HARDWARE SPECS">
       <div className="space-y-3">
         {/* CPU name */}
         <div className="flex items-center gap-2 rounded border border-white/5 bg-black/20 px-3 py-2">

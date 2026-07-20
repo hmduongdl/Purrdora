@@ -34,15 +34,28 @@ cd "$DIR"
 
 install -d -m 0755 /usr/libexec /usr/share/polkit-1/actions /etc/polkit-1/rules.d
 
-# Build helper if needed
-if [ ! -f "$HELPER_SRC" ]; then
-  echo "Helper binary not built at $HELPER_SRC, compiling first..."
-  if command -v cargo &> /dev/null; then
-    cargo build --manifest-path "$DIR/../src-tauri/Cargo.toml" --release --bin purrdora-helper
-  else
-    echo "Error: cargo is not installed. Please build purrdora-helper first."
-    exit 1
+# Always build the helper before installation. `sudo` normally uses a secure
+# PATH which excludes ~/.cargo/bin, so find Cargo from the invoking user too.
+CARGO_BIN="$(command -v cargo || true)"
+BUILD_USER="${SUDO_USER:-}"
+BUILD_HOME=""
+if [ -n "$BUILD_USER" ]; then
+  BUILD_HOME="$(getent passwd "$BUILD_USER" | cut -d: -f6)"
+  if [ -z "$CARGO_BIN" ] && [ -x "$BUILD_HOME/.cargo/bin/cargo" ]; then
+    CARGO_BIN="$BUILD_HOME/.cargo/bin/cargo"
   fi
+fi
+
+if [ -z "$CARGO_BIN" ]; then
+  echo "Error: cargo is not installed. Please build purrdora-helper first."
+  exit 1
+fi
+
+if [ -n "$BUILD_USER" ] && [ -n "$BUILD_HOME" ]; then
+  echo "Building helper with Cargo from $BUILD_USER..."
+  runuser -u "$BUILD_USER" -- env HOME="$BUILD_HOME" "$CARGO_BIN" build --manifest-path "$DIR/../src-tauri/Cargo.toml" --release --bin purrdora-helper
+else
+  "$CARGO_BIN" build --manifest-path "$DIR/../src-tauri/Cargo.toml" --release --bin purrdora-helper
 fi
 
 # Copy helper binary

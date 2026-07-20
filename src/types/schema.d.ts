@@ -101,6 +101,26 @@ export interface SessionMetrics {
   kernel_version: string;
 }
 
+/** Current monitor layout, as reported by the desktop compositor. */
+export interface DisplayInfo {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scale_factor: number;
+  is_primary: boolean;
+}
+
+export interface DisplayState {
+  displays: DisplayInfo[];
+  /** Whether the laptop's built-in eDP/LVDS/DSI panel is actively connected. */
+  laptop_display_active: boolean;
+  /** single, extend, or mirror */
+  mode: string;
+}
+
 /** ── Audio State (PipeWire / WirePlumber Mixer) ── */
 
 export interface AudioStream {

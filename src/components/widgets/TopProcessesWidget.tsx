@@ -5,9 +5,10 @@ const COLOR_ORDER = ["bg-cyan-accent", "bg-primary", "bg-primary", "bg-primary",
 
 export function TopProcessesWidget() {
   const processes = useSystemStore((s) => s.processes);
+
   return (
-    <WidgetFactory title="ỨNG DỤNG DÙNG RAM">
-      <div className="space-y-2.5">
+    <WidgetFactory title="TOP RAM USERS" className="top-processes-widget">
+      <div className="top-process-list space-y-2.5">
         {processes.length === 0 ? (
           // Skeleton while loading
           Array.from({ length: 4 }, (_, i) => (
@@ -22,7 +23,7 @@ export function TopProcessesWidget() {
                 <span className="flex w-32 min-w-0 items-center gap-1.5 font-medium">
                   <span className="truncate">{name}</span>
                   {process_count > 1 && (
-                    <span className="flex-none rounded bg-primary/10 px-1 text-[8px] text-primary">
+                    <span className="flex-none rounded bg-primary/10 px-1 text-[10px] text-primary">
                       ×{process_count}
                     </span>
                   )}
@@ -39,7 +40,7 @@ export function TopProcessesWidget() {
                   <span className="w-10 text-right font-mono">{mem_percent.toFixed(1)}%</span>
                   <span
                     className="w-16 text-right font-mono text-on-surface-variant/60"
-                    title="RAM ước tính, đã loại phần bộ nhớ chia sẻ bị đếm lặp"
+                    title="RAM ước tính, đã trừ phần bộ nhớ dùng chung bị đếm trùng"
                   >
                     {mem_mb >= 1024
                       ? `${(mem_mb / 1024).toFixed(1)} GiB`

@@ -5,7 +5,7 @@
 <policyconfig>
 
   <vendor>Purrdora</vendor>
-  <vendor_url>https://github.com/hoangminhduong/Linux-Fedora-System-Control</vendor_url>
+  <vendor_url>https://github.com/hmduongdl/Purrdora</vendor_url>
 
   <action id="com.purrdora.setfanmode">
     <description>Set MSI EC fan mode</description>

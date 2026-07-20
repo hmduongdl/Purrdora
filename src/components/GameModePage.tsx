@@ -7,7 +7,7 @@ import { WidgetFactory } from "./widgets/factory";
 import { invoke } from "@tauri-apps/api/core";
 import type { GameSession } from "../types/schema";
 
-export default function GameModePage() {
+export default function GameModePage({ fullscreen = false }: { fullscreen?: boolean }) {
   const mainRef = useRef<HTMLElement>(null);
 
   const active = useSystemStore((s) => s.controls.is_gamemode_active);
@@ -69,22 +69,19 @@ export default function GameModePage() {
   };
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden bg-[#0a0a0f] text-[#e4e1e9]">
+    <div className={`app-page-frame flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#0a0a0f] text-[#e4e1e9]${fullscreen ? " game-page-fullscreen" : ""}`}>
       <main
         ref={mainRef}
-        className="custom-scrollbar min-h-0 flex-1 overflow-y-auto"
-        style={{
-          padding: "clamp(8px, 1.2vw, 24px)",
-          paddingBottom: "calc(var(--dock-height, 68px) + 32px)",
-        }}
+        className={`game-page-main custom-scrollbar min-h-0 flex-1 overflow-y-auto${fullscreen ? " game-page-main-fullscreen" : ""}`}
+        style={fullscreen ? undefined : { padding: "clamp(8px, 1.2vw, 24px)" }}
       >
         <div className="dashboard-columns w-full">
           {/* ── Cột 1: Điều khiển Game Mode ── */}
           <div className="dashboard-column">
-            <WidgetFactory title="ĐIỀU KHIỂN CHẾ ĐỘ" icon={<Gamepad2 size={14} />} accentColor="text-emerald-400">
+            <WidgetFactory title="MODE CONTROL" icon={<Gamepad2 size={14} />} accentColor="text-emerald-400">
               <div className="flex flex-col gap-3 py-1">
                 <p className="text-[10px] text-on-surface-variant leading-relaxed">
-                  Kích hoạt Game Mode để tối ưu hóa CPU Governor, GPU Power Profile và kích hoạt GameMode Daemon nhằm đạt hiệu năng chơi game tối đa.
+                  Kích hoạt Chế độ Trò chơi để tối ưu bộ điều phối CPU, cấu hình năng lượng GPU và khởi động dịch vụ GameMode nhằm đạt hiệu năng tối đa.
                 </p>
 
                 {/* Big interactive switch button */}
@@ -108,11 +105,11 @@ export default function GameModePage() {
                   />
                   
                   <span className="mt-2 text-[11px] font-bold uppercase tracking-wider">
-                    {active ? "Game Mode: Đang Bật" : "Game Mode: Đang Tắt"}
+                    {active ? "Chế độ Trò chơi: Đang bật" : "Chế độ Trò chơi: Đang tắt"}
                   </span>
                   
                   <span className="mt-0.5 text-[8px] text-on-surface-variant font-mono">
-                    {active ? "Click để tắt chế độ hiệu năng" : "Click để tối ưu hiệu năng chơi game"}
+                    {active ? "Nhấn để tắt chế độ hiệu năng" : "Nhấn để tối ưu hiệu năng trò chơi"}
                   </span>
                 </button>
 
@@ -159,9 +156,9 @@ export default function GameModePage() {
                       >
                         ✕
                       </button>
-                      <p className="font-bold text-cyan-accent mb-0.5">💡 HƯỚNG DẪN ĐO FPS</p>
+                      <p className="font-bold text-cyan-accent mb-0.5">💡 HƯỚNG DẪN THEO DÕI FPS</p>
                       <p className="pr-3">
-                        Để hiển thị FPS trực tiếp, vui lòng cài đặt MangoHud và thêm cấu hình sau vào thuộc tính khởi chạy (Launch Options) của game trên Steam (hoặc cài đặt tương đương trên Lutris/Heroic):
+                        Để hiển thị chỉ số FPS trong trò chơi, vui lòng cài đặt MangoHud và bổ sung tham số sau vào mục Tùy chọn Khởi chạy (Launch Options) trên Steam (hoặc thiết lập tương tự trên Lutris/Heroic):
                       </p>
                       <code className="mt-1 block bg-black/40 px-1.5 py-0.5 rounded text-cyan-accent font-mono text-[8px]">
                         MANGOHUD=1 %command%
@@ -175,27 +172,27 @@ export default function GameModePage() {
                   ) : !isMangoInstalled ? (
                     <div className="rounded-lg border border-pink-accent/20 bg-pink-accent/5 p-2 text-[9px] text-on-surface-variant">
                       <p className="font-bold text-pink-accent mb-0.5">⚠️ CHƯA CÀI ĐẶT MANGOHUD</p>
-                      <p>Vui lòng cài đặt MangoHud để theo dõi chỉ số FPS in-game:</p>
+                      <p>Vui lòng cài đặt MangoHud để theo dõi chỉ số FPS trong trò chơi:</p>
                       <code className="mt-1 block bg-black/40 px-1.5 py-0.5 rounded text-pink-accent font-mono text-[8px]">
                         sudo dnf install mangohud
                       </code>
                     </div>
                   ) : !isMangoConfigured ? (
                     <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-2 text-[9px] text-on-surface-variant">
-                      <p className="font-bold text-yellow-400 mb-0.5">⚙️ CHƯA CẤU HÌNH GHI LOG</p>
-                      <p className="mb-1.5">Purrdora cần thiết lập thư mục log để đọc chỉ số FPS in-game.</p>
+                      <p className="font-bold text-yellow-400 mb-0.5">⚙️ CHƯA THIẾT LẬP GHI NHẬT KÝ</p>
+                      <p className="mb-1.5">Purrdora cần thiết lập thư mục nhật ký để thu thập chỉ số FPS trong trò chơi.</p>
                       <button
                         onClick={handleConfigureMango}
                         className="px-2.5 py-1 bg-yellow-500/10 border border-yellow-500/30 hover:bg-yellow-500/20 text-yellow-400 text-[8px] font-bold rounded transition-colors uppercase tracking-wider"
                       >
-                        Thiết lập thư mục log
+                        Thiết lập thư mục nhật ký
                       </button>
                     </div>
                   ) : (
                     <div className="rounded-lg border border-emerald-500/10 bg-emerald-500/5 p-2 text-[9px] flex items-center justify-between">
                       <div>
                         <p className="font-bold text-emerald-400">✅ MANGOHUD SẴN SÀNG</p>
-                        <p className="text-[8px] text-slate-500">Đã kích hoạt tự động ghi log vào Purrdora</p>
+                        <p className="text-[8px] text-slate-500">Đã kích hoạt ghi nhật ký tự động</p>
                       </div>
                       <div className="flex h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     </div>
@@ -212,8 +209,8 @@ export default function GameModePage() {
             <GameStatusWidget />
 
             {/* Session History Widget */}
-            <WidgetFactory title="LỊCH SỬ PHIÊN CHƠI" icon={<History size={14} />} accentColor="text-pink-accent">
-              <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto custom-scrollbar pr-1 py-1">
+            <WidgetFactory title="SESSION HISTORY" icon={<History size={14} />} accentColor="text-pink-accent">
+              <div className="game-session-history flex flex-col gap-2 max-h-[220px] overflow-y-auto custom-scrollbar pr-1 py-1">
                 {sessions.length === 0 ? (
                   <p className="text-[10px] text-slate-500 italic py-2">Chưa ghi nhận phiên chơi nào.</p>
                 ) : (

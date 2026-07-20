@@ -24,7 +24,7 @@ export function SystemOptimizationWidget() {
   };
 
   return (
-    <WidgetFactory title="TỐI ƯU HỆ THỐNG">
+    <WidgetFactory title="SYSTEM OPTIMIZATION">
       <p className="text-[9px] leading-relaxed text-on-surface-variant">
         Dọn dẹp tài nguyên tạm thời khi cần thiết. Thao tác không ảnh hưởng đến tệp cá nhân.
       </p>

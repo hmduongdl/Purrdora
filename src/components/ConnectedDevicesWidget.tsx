@@ -38,12 +38,12 @@ export const ConnectedDevicesWidget = memo(function ConnectedDevicesWidget() {
   const connected = state?.devices.filter((d) => d.connected) ?? [];
   const available = state?.devices.filter((d) => !d.connected) ?? [];
 
-  return <div className="glass-panel flex min-h-[150px] flex-col gap-3 p-[clamp(10px,1.2vh,16px)]">
+  return <div className="adaptive-card connected-devices-widget glass-panel flex min-h-[150px] flex-none flex-col gap-3 p-[clamp(10px,1.2vh,16px)]">
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2"><Bluetooth size={14} className="text-purple-400" /><h3 className="header-small-caps text-[10px] text-purple-300 md:text-[11px]">CONNECTED DEVICES</h3></div>
       {state ? <StatusPill tone="green">{connected.length + state.usb_devices.length} connected</StatusPill> : <div className="skeleton h-5 w-20 rounded-full" />}
     </div>
-    <div className="space-y-1.5">
+    <div className="connected-device-list custom-scrollbar min-h-0 space-y-1.5 overflow-y-auto pr-1">
       {connected.map((device) => <div key={device.address} className="flex items-center gap-2.5 rounded-lg border border-purple-400/20 bg-purple-400/[.06] px-2.5 py-2">
         <span className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-400/10 text-purple-300"><Bluetooth size={13} /></span>
         <span className="min-w-0 flex-1"><strong className="block truncate text-[10px] text-slate-200">{device.name}</strong><small className="block font-mono text-[8px] text-slate-500">BT address · {device.address}</small></span><Check size={12} className="text-emerald-400" />

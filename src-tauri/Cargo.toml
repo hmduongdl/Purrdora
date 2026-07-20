@@ -2,7 +2,7 @@
 name = "purrdora"
 version = "0.1.0"
 description = "Purrdora - Fedora Linux System Control & Monitoring Dashboard"
-authors = ["hoangminhduong"]
+authors = ["Purrdora Contributors"]
 license = "MIT"
 repository = ""
 edition = "2021"

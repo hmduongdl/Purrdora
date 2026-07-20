@@ -96,15 +96,15 @@ fn set_webcam(val: &str) -> Result<(), String> {
 }
 
 fn set_win_key(val: &str) -> Result<(), String> {
-    if val != "on" && val != "off" {
-        return Err("Value must be 'on' or 'off'".to_owned());
+    if val != "left" && val != "right" {
+        return Err("Value must be 'left' or 'right'".to_owned());
     }
     write_sys("/sys/devices/platform/msi-ec/win_key", val)
 }
 
 fn set_fn_key(val: &str) -> Result<(), String> {
-    if val != "on" && val != "off" {
-        return Err("Value must be 'on' or 'off'".to_owned());
+    if val != "left" && val != "right" {
+        return Err("Value must be 'left' or 'right'".to_owned());
     }
     write_sys("/sys/devices/platform/msi-ec/fn_key", val)
 }

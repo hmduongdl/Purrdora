@@ -1,158 +1,133 @@
 # Purrdora
 
-System monitoring and control dashboard for Fedora Linux, built with Tauri v2 + React.
+Bảng điều khiển giám sát hệ thống và tối ưu hóa phần cứng hiệu năng cao dành cho **Fedora Linux**, được xây dựng trên nền tảng **Tauri v2 + React 19**, tích hợp sâu các tính năng điều khiển phần cứng của **MSI Center (thông qua MSI Embedded Controller)**.
 
-<p align="center">
-  <img alt="Purrdora Logo" src="./assets/logo.png" width="200">
-</p>
+Purrdora mang lại trải nghiệm hợp nhất giữa việc theo dõi tài nguyên phần cứng thời gian thực và khả năng can thiệp tinh chỉnh hệ thống (quạt tản nhiệt, giới hạn sạc pin, chế độ hiệu năng, dọn dẹp bộ nhớ) trực quan, mượt mà trên hệ điều hành Linux.
 
-## Features
+---
 
-- **System Monitor** — Real-time CPU, RAM, GPU, and network metrics with 1s refresh
-- **Audio Mixer** — Per-sink volume slider and mute toggle via PipeWire
-- **Media Player** — Now-playing display for any MPRIS-compatible player (Spotify, Firefox, etc.)
-- **Power Profiles** — Switch between Power Saver, Balanced, and Performance via UPower D-Bus
-- **GameMode** — One-click FeralInteractive GameMode toggle with FPS overlay support (MangoHud)
-- **Drop RAM Cache** — Free page cache, dentries, and inodes via pkexec/Polkit
-- **Performance History** — Time-series charts for CPU, RAM, GPU, and network
-- **Top Processes** — Live process table sorted by resource usage
-- **MSI EC Monitor** — Fan speeds, CPU/GPU temperatures from the MSI embedded controller
-- **Shutdown Timer** — Schedule system shutdown with a visual countdown
-- **Custom Window Frame** — Native-looking title bar with minimize, maximize, and close
+## 🌟 Tính Năng Cốt Lõi
 
-## Requirements
+### 1. Giám Sát Hệ Thống Thời Gian Thực (System Monitoring)
+*   **Chỉ số tài nguyên:** Theo dõi chi tiết mức độ sử dụng CPU, RAM, GPU, và băng thông mạng với chu kỳ cập nhật nhanh 1 giây.
+*   **Lịch sử hiệu năng:** Hiển thị biểu đồ dòng thời gian (Time-series chart) cho các chỉ số quan trọng để kiểm soát độ ổn định.
+*   **Đo đạc nhiệt độ:** Tích hợp bộ đọc cảm biến nhiệt độ phần cứng trực tiếp từ nhân Linux và bộ điều khiển MSI.
+*   **Tiến trình hệ thống:** Liệt kê danh sách các tiến trình ngốn RAM nhất theo thứ tự giảm dần thời gian thực.
 
-- **Fedora Linux** 40+ (Workstation)
-- **PipeWire** for audio control
-- **UPower PowerProfiles** D-Bus service
-- **gamemode** — optional, for GameMode toggle: `sudo dnf install gamemode`
-- **MangoHud** — optional, for in-game FPS overlay: `sudo dnf install mangohud`
-- **polkit** and **pkexec** — usually pre-installed (`polkit`, `polkit-libs`, `polkit-gnome` or equivalent)
+### 2. Tinh Chỉnh & Tối Ưu Hệ Thống (System Tuning)
+*   **Chế độ hoạt động (Operating Modes):** Chuyển đổi nhanh giữa các cấu hình điện năng (Power Saver, Balanced, Performance) thông qua UPower D-Bus.
+*   **Tối ưu chơi game (GameMode):** Bật/tắt nhanh chế độ GameMode của FeralInteractive nhằm tăng ưu tiên CPU/GPU Scheduler, tích hợp bật MangoHud theo dõi FPS trực tiếp khi chơi game.
+*   **Giải phóng RAM Cache:** Xóa nhanh bộ đệm trang (Page Cache), Dentries, và Inodes để giải phóng bộ nhớ vật lý tức thì (yêu cầu quyền nâng cao thông qua Polkit).
+*   **Hẹn giờ tắt máy:** Công cụ đếm ngược tắt hệ thống tự động được thiết kế trực quan.
 
-## Quick Start
+### 3. Tích Hợp MSI EC Center (MSI Hardware Control)
+Purrdora tích hợp trình điều khiển MSI Embedded Controller (msi-ec) mang các tính năng độc quyền của MSI Center lên Linux:
+*   **Cấu hình Fan Profile:** Thay đổi chế độ quạt (Auto, Silent, Advanced) hoặc kích hoạt **Cooler Boost** (tối đa công suất quạt) bằng một cú click.
+*   **Tự động tăng tốc quạt (Auto Fan Boost):** Theo dõi nhiệt độ ACPI, tự động bật Cooler Boost khi đạt ngưỡng nhiệt chỉ định (ví dụ $\ge 78^\circ\text{C}$) và tắt khi nhiệt độ hạ xuống dưới $72^\circ\text{C}$.
+*   **Chế độ hiệu năng phần cứng (Shift mode):** Thiết lập mức giới hạn hiệu năng của EC (Eco, Comfort, Sport/Turbo).
+*   **Bảo vệ pin (Battery Master):** Điều chỉnh giới hạn sạc pin dừng ở 80% (chế độ bảo vệ tuổi thọ pin) hoặc cho phép sạc đầy 100%.
+*   **Đèn nền bàn phím (Keyboard Backlight):** Thay đổi độ sáng đèn nền trực tiếp qua bộ điều khiển nhúng.
+
+### 4. Kiểm Soát Âm Thanh & Đa Phương Tiện
+*   **PipeWire Audio Mixer:** Hỗ trợ thanh kéo điều chỉnh âm lượng riêng biệt cho từng cổng ra âm thanh và bật/tắt tiếng (Mute).
+*   **Trình phát đa phương tiện (MPRIS):** Hiển thị bài nhạc đang phát (tên bài, nghệ sĩ, ảnh bìa album) và điều khiển phát nhạc từ bất kỳ trình phát nào tương thích với chuẩn MPRIS (Spotify, Firefox, Chrome, VLC, v.v.).
+
+---
+
+## 🛡️ Thiết Kế Bảo Mật & Quyền Nâng Cao
+
+Để thực hiện các thao tác hệ thống nâng cao (như ghi ngưỡng sạc pin, dọn dẹp RAM, chỉnh quạt MSI), Purrdora sử dụng thiết kế bảo mật phân quyền nghiêm ngặt:
+*   **Giao diện unprivileged:** Giao diện Tauri/React chạy hoàn toàn dưới quyền người dùng thông thường, hạn chế tối đa nguy cơ khai thác lỗ hổng bảo mật thông qua Webview.
+*   **Trợ lý đặc quyền độc lập (`purrdora-helper`):** Một tiến trình nhỏ bằng Rust được biên dịch riêng, đặt tại `/usr/libexec/purrdora-helper`. File nhị phân này được bảo vệ nghiêm ngặt và chỉ chấp nhận danh sách lệnh được whitelist (đã được làm sạch dữ liệu đầu vào).
+*   **Chính sách Polkit cục bộ:** Cài đặt tệp cấu hình Polkit (`/usr/share/polkit-1/actions/com.purrdora.pkexec.policy`) và rules (`/etc/polkit-1/rules.d/99-purrdora.rules`) cho phép tài khoản thuộc nhóm quản trị viên thực thi passwordless chỉ dành riêng cho helper của ứng dụng.
+
+---
+
+## 📋 Yêu Cầu Hệ Thống
+
+Để Purrdora hoạt động đầy đủ tính năng, hệ thống của bạn cần đáp ứng các điều kiện sau:
+*   **Hệ điều hành:** Fedora Linux 40+ (Workstation)
+*   **Hệ thống âm thanh:** PipeWire (ứng dụng điều khiển thông qua `wpctl`)
+*   **D-Bus:** Dịch vụ UPower PowerProfiles để điều khiển chế độ pin.
+*   **Gói phụ trợ chơi game (Tùy chọn):**
+    *   `gamemode`: `sudo dnf install gamemode`
+    *   `mangohud`: `sudo dnf install mangohud`
+*   **Môi trường phần cứng MSI (Tùy chọn):** Laptop MSI và nhân Linux đã nạp mô-đun driver `msi-ec` để điều khiển quạt và giới hạn sạc.
+
+---
+
+## 🚀 Hướng Dẫn Cài Đặt & Phát Triển
+
+### 1. Chuẩn bị môi trường phát triển
+Yêu cầu đã cài đặt các công cụ sau trên máy:
+*   **Node.js** >= 20 và công cụ quản lý gói **pnpm**
+*   **Rust** >= 1.77
+*   **Tauri CLI** >= 2.x
+
+### 2. Cài đặt các gói phụ thuộc và chạy chế độ dev
+```bash
+# Cài đặt thư viện npm
+pnpm install
+
+# Chạy ứng dụng dưới chế độ kiểm thử (Development)
+pnpm tauri:dev
+```
+
+### 3. Biên dịch và cấu hình đặc quyền hệ thống
+Để kích hoạt đầy đủ các tính năng điều chỉnh phần cứng (quạt, pin, chế độ hiệu năng) hoạt động passwordless thông qua Polkit, hãy biên dịch ứng dụng và cài đặt helper:
 
 ```bash
-pnpm install          # Install dependencies
-pnpm tauri:dev        # Run in development mode
-pnpm tauri:build      # Build for production
+# Biên dịch phiên bản Release
+pnpm tauri:build
+
+# Cài đặt helper nhị phân và thiết lập các quy tắc chính sách Polkit
+sudo ./packaging/install.sh
 ```
 
-Build output: `src-tauri/target/release/bundle/`
+> [!IMPORTANT]
+> Script cài đặt `install.sh` sẽ thực hiện các bước sau:
+> 1. Sao chép file nhị phân trợ lý `purrdora-helper` vào `/usr/libexec/purrdora-helper`.
+> 2. Đăng ký hành động Polkit tại `/usr/share/polkit-1/actions/com.purrdora.pkexec.policy`.
+> 3. Tạo quy tắc Polkit tại `/etc/polkit-1/rules.d/99-purrdora.rules` để cấp quyền chạy passwordless cho các hành động của Purrdora từ phiên đăng nhập cục bộ đang hoạt động.
 
-### Development Tools
+---
 
-- **Node.js** >= 20 + **pnpm**
-- **Rust** >= 1.77
-- **Tauri CLI** >= 2.x
+## 📂 Cấu Trúc Thư Mục Dự Án
 
-## Privileged Access (Polkit Helper)
-
-Hardware monitoring works without elevated privileges. Executing hardware commands (fan modes, shift modes, cooler boost, keyboard backlight, battery limits, power profiles) requires superuser access.
-
-Purrdora uses a dedicated Rust helper (`purrdora-helper`) with **PolicyKit (polkit)** rules for secure, passwordless execution.
-
-```bash
-pnpm tauri:build                     # Build first
-sudo ./packaging/install.sh          # Install helper + polkit rules
-```
-
-What the installer does:
-1. Copies `purrdora-helper` to `/usr/libexec/purrdora-helper` (input-whitelisted, memory-safe Rust)
-2. Installs Polkit policy: `/usr/share/polkit-1/actions/com.purrdora.pkexec.policy`
-3. Installs Polkit rules: `/etc/polkit-1/rules.d/99-purrdora.rules`
-
-> A `pkexec` dialog may appear on first privileged action, or if Polkit is misconfigured. In dev mode, a setup dialog warns when the helper isn't installed.
-
-### Security Design
-
-- **No setuid on Tauri binary** — the GUI runs entirely unprivileged (webview + JS attack surface)
-- **Isolated helper** — `/usr/libexec/purrdora-helper` is a hardened Rust binary with a hardcoded whitelist of allowed actions and strict input sanitization
-- **Granular Polkit rules** — passwordless auth is restricted to `com.purrdora.*` namespace, local active sessions only; no blanket access to `sudo` or `/usr/bin/tee`
-
-## Tech Stack
-
-| Layer    | Technology |
-|----------|------------|
-| Frontend | React 19, TypeScript, Tailwind CSS v4, shadcn/ui, Recharts, Framer Motion, Zustand |
-| Backend  | Tauri v2, Rust, sysinfo, tokio, zbus |
-| Audio    | PipeWire (`wpctl` CLI) |
-| D-Bus    | MPRIS, UPower PowerProfiles, GameMode |
-| Gaming   | MangoHud FPS monitoring, FeralInteractive GameMode |
-
-## Project Structure
+Sơ đồ cấu trúc thư mục quan trọng trên Purrdora:
 
 ```
-├── assets/                          # Logo and static assets
+├── assets/                          # Logo và tài nguyên tĩnh
 ├── packaging/
-│   ├── install.sh                   # Polkit helper installer
-│   ├── 99-purrdora.rules            # Polkit rules
-│   └── com.purrdora.pkexec.policy   # Polkit action policy
+│   ├── install.sh                   # Script cài đặt Polkit Helper
+│   ├── 99-purrdora.rules            # Quy tắc Polkit cấp quyền passwordless
+│   └── com.purrdora.pkexec.policy   # Khai báo hành động đặc quyền Polkit
 ├── resources/
 │   ├── 99-purrdora.rules
 │   ├── fedora-system-control.desktop
 │   └── install-autostart.sh
-├── src/                             # Frontend (React + TypeScript)
-│   ├── App.tsx                      # Root component
-│   ├── main.tsx                     # React entry point
-│   ├── index.css                    # Tailwind and global styles
-│   ├── components/
-│   │   ├── Layout.tsx               # Main window frame
-│   │   ├── BottomDock.tsx           # Bottom dock bar
-│   │   ├── FooterStrip.tsx          # Status footer
-│   │   ├── AudioMixerWidget.tsx     # Audio mixer
-│   │   ├── MediaPlayerWidget.tsx    # MPRIS media player
-│   │   ├── MsiCenterPage.tsx        # MSI hardware page
-│   │   ├── GameModePage.tsx         # GameMode and MangoHud
-│   │   ├── QuickActions.tsx         # GameMode toggle, RAM cache, disk cleanup
-│   │   ├── ShutdownTimer.tsx        # Shutdown scheduler
-│   │   ├── VolumeSlider.tsx         # PipeWire volume slider
-│   │   ├── ui/                      # shadcn/ui primitives
-│   │   └── widgets/
-│   │       ├── factory.tsx          # Widget registry
-│   │       ├── CpuWidget.tsx
-│   │       ├── GpuWidget.tsx
-│   │       ├── RamWidget.tsx
-│   │       ├── NetworkWidget.tsx
-│   │       ├── GameStatusWidget.tsx
-│   │       ├── HardwareStatsWidget.tsx
-│   │       ├── MsiEcWidget.tsx
-│   │       ├── PerformanceHistoryWidget.tsx
-│   │       ├── RunningGameWidget.tsx
-│   │       ├── SessionCard.tsx
-│   │       ├── SessionToolsWidget.tsx
-│   │       ├── SystemMetricsWidget.tsx
-│   │       └── TopProcessesWidget.tsx
-│   ├── hooks/
-│   │   ├── useAutoResize.ts
-│   │   ├── useDebounce.ts
-│   │   └── useIpcListener.ts
-│   ├── store/
-│   │   └── useSystemStore.ts        # Zustand state
-│   └── types/
-│       └── schema.d.ts              # Type definitions
-├── src-tauri/                       # Backend (Rust)
-│   ├── Cargo.toml
-│   ├── tauri.conf.json              # Tauri v2 config
-│   ├── build.rs
-│   ├── capabilities/
-│   │   └── default.json             # Permission scopes
-│   ├── icons/                       # App icons
-│   └── src/
-│       ├── main.rs                  # Entry point
-│       ├── lib.rs                   # Command registration
-│       ├── audio.rs                 # PipeWire audio control
-│       ├── helper.rs                # Privileged helper binary
-│       ├── ipc.rs                   # Backpressure-safe event emitter
-│       ├── mangohud.rs              # MangoHud FPS log parser
-│       ├── monitor.rs               # System telemetry (CPU/RAM/GPU/network)
-│       ├── mpris.rs                 # MPRIS D-Bus media player
-│       ├── msi_ec.rs                # MSI embedded controller
-│       ├── operating_mode.rs        # Performance mode profiles
-│       ├── optimizer.rs             # Power profiles and GameMode
-│       └── privileged.rs            # Polkit integration
-└── pnpm-lock.yaml
+├── src/                             # Giao diện Frontend (React + TS + Tailwind v4)
+│   ├── App.tsx                      # Giao diện chính của ứng dụng
+│   ├── main.tsx                     # Điểm khởi chạy React
+│   ├── index.css                    # Tệp định nghĩa kiểu Tailwind toàn cục
+│   └── components/
+│       ├── Layout.tsx               # Khung cửa sổ tuỳ chỉnh
+│       ├── BottomDock.tsx           # Thanh dock điều hướng phía dưới
+│       ├── MsiCenterPage.tsx        # Trang điều khiển phần cứng MSI Center
+│       ├── GameModePage.tsx         # Trang quản lý GameMode & MangoHud
+│       └── widgets/                 # Các khối widget hiển thị chỉ số chi tiết
+└── src-tauri/                       # Backend (Tauri + Rust)
+    ├── src/
+    │   ├── main.rs                  # Điểm khởi chạy ứng dụng Tauri
+    │   ├── lib.rs                   # Đăng ký lệnh IPC
+    │   ├── monitor.rs               # Xử lý telemetry hệ thống (CPU/GPU/RAM/Network)
+    │   ├── msi_ec.rs                # Giao tiếp với nhân driver msi-ec
+    │   ├── helper.rs                # Mã nguồn tiến trình đặc quyền helper
+    │   └── privileged.rs            # Giao tiếp nâng quyền với helper qua pkexec
 ```
 
-## License
+---
 
-MIT
+## 📄 Giấy Phép (License)
+
+Dự án này được phát hành dưới giấy phép **MIT**.

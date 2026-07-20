@@ -63,7 +63,7 @@ export const AudioMixerWidget = memo(function AudioMixerWidget() {
   };
 
   return (
-    <div className="glass-panel flex min-h-0 flex-col gap-3 p-[clamp(10px,1.2vh,16px)]">
+    <div className="adaptive-card glass-panel flex min-h-0 flex-col gap-3 p-[clamp(10px,1.2vh,16px)]">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Headphones size={14} className="text-cyan-accent" />

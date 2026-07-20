@@ -186,6 +186,12 @@ pub async fn scan_bluetooth_devices() -> Result<BluetoothState, BluetoothError> 
 }
 
 #[tauri::command]
+pub async fn set_bluetooth_power(enabled: bool) -> Result<BluetoothState, BluetoothError> {
+    ctl(&["power", if enabled { "on" } else { "off" }]).await?;
+    get_bluetooth_state().await
+}
+
+#[tauri::command]
 pub async fn connect_bluetooth_device(address: String) -> Result<BluetoothState, BluetoothError> {
     if !valid_address(&address) {
         return Err(BluetoothError {

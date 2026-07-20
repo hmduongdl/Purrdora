@@ -9,7 +9,7 @@ export function GameStatusWidget() {
   const activeOutput = session?.active_output ?? "—";
 
   return (
-    <WidgetFactory title="TRẠNG THÁI GAME">
+    <WidgetFactory title="GAME STATUS">
       <div className="flex flex-col gap-[clamp(6px,0.8vh,8px)] text-[clamp(10px,1.1vh,11px)]">
         {/* Active display output — real from wlr-randr / xrandr */}
         <div className="flex items-center justify-between rounded border border-white/5 bg-black/20 p-[clamp(6px,0.8vh,10px)]">

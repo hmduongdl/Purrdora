@@ -12,6 +12,16 @@ pub fn run() {
             bluetooth::get_bluetooth_state,
             bluetooth::scan_bluetooth_devices,
             bluetooth::connect_bluetooth_device,
+            bluetooth::set_bluetooth_power,
+            connectivity::get_connectivity_state,
+            connectivity::set_wifi_enabled,
+            connectivity::connect_wifi,
+            connectivity::set_airplane_mode,
+            connectivity::open_fedora_settings,
+            display::get_display_state,
+            display::open_display_settings,
+            input::get_touchpad_state,
+            input::set_touchpad_enabled,
             optimizer::set_power_profile,
             optimizer::toggle_gamemode,
             optimizer::check_gamemode_status,
@@ -31,6 +41,7 @@ pub fn run() {
             monitor::set_battery_limiter,
             monitor::get_running_game,
             get_local_ip,
+            get_system_identity,
             msi_ec::check_msi_ec_supported,
             msi_ec::get_msi_ec_state,
             msi_ec::set_msi_ec_cooler_boost,
@@ -76,15 +87,15 @@ pub fn run() {
                 .get_webview_window("main")
                 .ok_or_else(|| "main webview window was not created".to_owned())?;
 
-            // Start at 80% of the active monitor and lock the minimum
-            // window size to the same 80% so users can resize larger but
-            // never smaller. Fullscreen later uses the monitor's native size;
-            // this native call avoids frontend `window.set_size` permission
-            // errors and resize feedback loops.
+            // Keep the existing 80% width, but give the dashboard two extra
+            // percentage points vertically. The minimum height therefore
+            // scales with whichever monitor owns the window (1181px at
+            // 2560x1440, 1312px at 2560x1600) instead of hard-coding a value
+            // that would be invalid after moving to a different display.
             if let Ok(Some(monitor)) = window.current_monitor() {
                 let monitor_size = monitor.size();
                 let width = ((monitor_size.width as f64) * 0.8).round() as u32;
-                let height = ((monitor_size.height as f64) * 0.8).round() as u32;
+                let height = ((monitor_size.height as f64) * 0.82).round() as u32;
                 let min_size = tauri::PhysicalSize::new(width, height);
                 let _ = window.set_min_size(Some(min_size));
                 let _ = window.set_size(min_size);
@@ -125,7 +136,10 @@ pub fn run() {
 }
 mod audio;
 mod bluetooth;
+mod connectivity;
+mod display;
 mod ipc;
+mod input;
 mod mangohud;
 mod monitor;
 mod msi_ec;
@@ -148,4 +162,29 @@ fn get_local_ip() -> Option<String> {
     socket.connect("1.1.1.1:80").ok()?;
     let address = socket.local_addr().ok()?.ip();
     (!address.is_loopback()).then(|| address.to_string())
+}
+
+#[derive(serde::Serialize)]
+struct SystemIdentity {
+    hostname: String,
+    os_name: String,
+}
+
+#[tauri::command]
+fn get_system_identity() -> SystemIdentity {
+    let hostname = std::fs::read_to_string("/etc/hostname")
+        .unwrap_or_default()
+        .trim()
+        .to_owned();
+    let os_release = std::fs::read_to_string("/etc/os-release").unwrap_or_default();
+    let os_name = os_release
+        .lines()
+        .find_map(|line| line.strip_prefix("PRETTY_NAME="))
+        .map(|value| value.trim_matches('"').to_owned())
+        .unwrap_or_else(|| std::env::consts::OS.to_owned());
+
+    SystemIdentity {
+        hostname: if hostname.is_empty() { "Unknown device".into() } else { hostname },
+        os_name,
+    }
 }

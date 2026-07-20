@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Activity, BatteryCharging, BriefcaseBusiness, Cpu, Eraser, Gamepad2, Gauge, HardDrive, Keyboard, LoaderCircle, MemoryStick, Timer, VolumeX, Wind, X, Zap } from "lucide-react";
 import { useSystemStore } from "../store/useSystemStore";
+import { InfoTooltip } from "./ui/InfoTooltip";
 
 const PINK = "#ec1c6f";
 const CYAN = "#22d3ee";
+const AUTO_FAN_ENABLE_TEMPERATURE = 78;
+const AUTO_FAN_DISABLE_TEMPERATURE = 72;
+const AUTO_FAN_ENABLE_DELAY_MS = 9_000;
+const AUTO_FAN_DISABLE_DELAY_MS = 30_000;
+const AUTO_FAN_MINIMUM_ON_MS = 60_000;
 
 function MiniChart({ values, color }: { values: number[]; color: string }) {
   const points = useMemo(() => {
@@ -74,19 +80,69 @@ function HardwareControl() {
   const modes = state?.available_shift_modes ?? ["eco", "comfort", "turbo"];
   const fans = state?.available_fan_modes ?? ["auto", "silent", "advanced"];
   const [fanModalOpen, setFanModalOpen] = useState(false);
-  const [autoFan, setAutoFan] = useState(() => localStorage.getItem("purrdora_auto_fan") === "true");
   const autoBoosted = useRef(false);
+  const autoBoostedAt = useRef<number | null>(null);
+  const highTemperatureSince = useRef<number | null>(null);
+  const lowTemperatureSince = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!autoFan || unsupported) return;
+    if (unsupported) {
+      autoBoosted.current = false;
+      autoBoostedAt.current = null;
+      highTemperatureSince.current = null;
+      lowTemperatureSince.current = null;
+      return;
+    }
+
     const checkTemperature = () => {
       const currentEcState = useSystemStore.getState().msiEcState;
       const temperature = currentEcState?.acpi_thermal_temp ?? 0;
-      if (temperature >= 78 && !autoBoosted.current && !currentEcState?.cooler_boost) {
-        autoBoosted.current = true;
-        void setBoost(true);
-      } else if (temperature <= 72 && autoBoosted.current) {
+      const now = Date.now();
+      const autoProfileSelected = currentEcState?.fan_mode === "auto";
+
+      // Auto fan control belongs to the EC's Auto profile. Choosing another
+      // profile immediately hands fan control back to that profile.
+      if (!autoProfileSelected) {
         autoBoosted.current = false;
+        autoBoostedAt.current = null;
+        highTemperatureSince.current = null;
+        lowTemperatureSince.current = null;
+        return;
+      }
+
+      if (!autoBoosted.current) {
+        lowTemperatureSince.current = null;
+        // Do not take ownership of a Cooler Boost that was enabled manually.
+        if (currentEcState?.cooler_boost) {
+          highTemperatureSince.current = null;
+          return;
+        }
+        if (temperature < AUTO_FAN_ENABLE_TEMPERATURE) {
+          highTemperatureSince.current = null;
+          return;
+        }
+        highTemperatureSince.current ??= now;
+        if (now - highTemperatureSince.current >= AUTO_FAN_ENABLE_DELAY_MS) {
+          autoBoosted.current = true;
+          autoBoostedAt.current = now;
+          highTemperatureSince.current = null;
+          void setBoost(true);
+        }
+        return;
+      }
+
+      highTemperatureSince.current = null;
+      if (temperature > AUTO_FAN_DISABLE_TEMPERATURE) {
+        lowTemperatureSince.current = null;
+        return;
+      }
+      lowTemperatureSince.current ??= now;
+      const boostOnLongEnough = now - (autoBoostedAt.current ?? now) >= AUTO_FAN_MINIMUM_ON_MS;
+      const temperatureStableEnough = now - lowTemperatureSince.current >= AUTO_FAN_DISABLE_DELAY_MS;
+      if (boostOnLongEnough && temperatureStableEnough) {
+        autoBoosted.current = false;
+        autoBoostedAt.current = null;
+        lowTemperatureSince.current = null;
         void setBoost(false);
         void setFan("auto");
       }
@@ -94,7 +150,7 @@ function HardwareControl() {
     checkTemperature();
     const timer = window.setInterval(checkTemperature, 3000);
     return () => window.clearInterval(timer);
-  }, [autoFan, setBoost, setFan, unsupported]);
+  }, [setBoost, setFan, unsupported]);
 
   return (
     <article className="msi-card msi-hardware-control min-w-0 p-5">
@@ -104,8 +160,13 @@ function HardwareControl() {
       </div>
       {unsupported && <p className="mt-2 text-[10px] text-amber-400">msi-ec driver not detected</p>}
 
-      <div className="mt-4">
-        <p className="msi-label">Shift mode</p>
+      <div className="msi-control-group mt-4">
+        <div className="flex items-center gap-1.5">
+          <p className="msi-label">Shift mode</p>
+          <InfoTooltip id="shift-mode-help-center" label="Giải thích Shift Mode" accentClass="hover:text-pink-accent focus-visible:text-pink-accent">
+            Shift Mode điều chỉnh ưu tiên hiệu năng, giới hạn điện và nhiệt của CPU/GPU; không điều khiển tốc độ quạt trực tiếp. Eco tiết kiệm điện, Comfort cân bằng, Turbo ưu tiên hiệu năng. Muốn quạt chạy tối đa, hãy bật Cooler Boost.
+          </InfoTooltip>
+        </div>
         <div className="grid grid-cols-3 gap-2">
           {modes.slice(0, 3).map((mode) => (
             <button disabled={unsupported} key={mode} onClick={() => void setShift(mode)}
@@ -116,8 +177,13 @@ function HardwareControl() {
         </div>
       </div>
 
-      <div className="mt-4">
-        <p className="msi-label msi-label-cyan">Fan profile</p>
+      <div className="msi-control-group mt-4">
+        <div className="flex items-center gap-1.5">
+          <p className="msi-label msi-label-cyan">Fan profile</p>
+          <InfoTooltip id="fan-profile-help-center" label="Giải thích Fan Profile">
+            Fan Profile chọn đường cong quạt của EC: Silent ưu tiên yên tĩnh, Auto do firmware cân bằng và tự điều phối Cooler Boost khi nhiệt độ cao, Advanced dùng đường cong tùy chỉnh của MSI. Cooler Boost là chế độ riêng, ép quạt chạy tối đa và sẽ ồn hơn.
+          </InfoTooltip>
+        </div>
         <div className="grid grid-cols-3 gap-2">
           {fans.slice(0, 3).map((mode) => (
             <button disabled={unsupported} key={mode} onClick={() => {
@@ -135,14 +201,9 @@ function HardwareControl() {
       </div>
 
       <button disabled={unsupported} onClick={() => void setBoost(!state?.cooler_boost)}
-        className={`mt-4 flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-[10px] font-bold uppercase ${state?.cooler_boost ? "border-pink-accent bg-pink-accent/10 text-pink-accent" : "border-white/10 text-slate-400"}`}>
+        className={`msi-cooler-boost mt-4 flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-[10px] font-bold uppercase ${state?.cooler_boost ? "border-pink-accent bg-pink-accent/10 text-pink-accent" : "border-white/10 text-slate-400"}`}>
         <span className="flex items-center gap-2"><Wind size={13} />Cooler boost</span><span>{state?.cooler_boost ? "ON" : "OFF"}</span>
       </button>
-      <div className="mt-2 flex items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-[10px]">
-        <span className="text-slate-400">Auto fan ≥ 78°C <span className="text-slate-600">({state?.acpi_thermal_temp ?? 0}°C ACPI)</span></span>
-        <Toggle enabled={autoFan} onClick={() => { const next = !autoFan; setAutoFan(next); localStorage.setItem("purrdora_auto_fan", String(next)); }} label="Automatic fan boost" />
-      </div>
-
       <HardwareMonitoring />
       {fanModalOpen && <FanControlModal onClose={() => setFanModalOpen(false)} />}
     </article>
@@ -237,9 +298,9 @@ function HardwareMonitoring() {
   };
 
   return (
-    <div className="mt-4 border-t border-white/10 pt-3">
-      <p className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.16em] text-slate-300"><Activity size={13} className="text-cyan-accent" />Hardware Monitoring</p>
-      <div className="grid grid-cols-[150px_1fr] items-center gap-4">
+    <div className="msi-hardware-monitoring mt-4 border-t border-white/10 pt-3">
+      <p className="msi-monitoring-title mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.16em] text-slate-300"><Activity size={13} className="text-cyan-accent" />Hardware Monitoring</p>
+      <div className="msi-monitoring-grid grid grid-cols-[150px_1fr] items-center gap-4">
         <div className="grid grid-cols-2 gap-2">
           <UsageRing label="CPU Usage" value={cpuUsage} color={PINK} />
           <UsageRing label="GPU Usage" value={gpuUsage} color={CYAN} />
@@ -255,7 +316,7 @@ function HardwareMonitoring() {
 
 function ResourceUsage({ label, value, detail, icon, busy, animationKey, onClean }: { label: string; value: number; detail: string; icon: ReactNode; busy: boolean; animationKey: number; onClean: () => void }) {
   return (
-    <div className="min-w-0 rounded-lg border border-white/[.07] bg-black/15 p-2.5">
+    <div className="msi-resource-usage min-w-0 rounded-lg border border-white/[.07] bg-black/15 p-2.5">
       <div className="flex items-center justify-between"><span className="flex items-center gap-1.5 text-[9px] font-bold uppercase text-slate-300">{icon}{label}</span><strong className="font-mono text-sm text-slate-100">{Math.round(value)}%</strong></div>
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10"><div key={`${label}-${animationKey}`} className="resource-progress h-full rounded-full bg-pink-accent" style={{ "--target-width": `${Math.max(0, Math.min(100, value))}%` } as CSSProperties} /></div>
       <div className="mt-2 flex items-center justify-between gap-2"><span className="truncate text-[8px] text-slate-500">{detail}</span><button onClick={onClean} disabled={busy} className="flex shrink-0 items-center gap-1 rounded-full bg-primary px-2 py-1 text-[8px] font-bold text-white transition-transform active:scale-95 disabled:cursor-wait disabled:opacity-50"><span className={busy ? "animate-spin" : ""}>{busy ? <LoaderCircle size={9} /> : <Eraser size={9} />}</span>{busy ? "Working" : "Free"}</button></div>
@@ -282,7 +343,7 @@ function BatteryMaster() {
         <h2 className="msi-section-title">Battery Master</h2>
         <BatteryCharging size={16} className="text-pink-accent" />
       </div>
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-2">
+      <div className="flex shrink-0 flex-col items-center justify-center py-3">
         <div className="battery-ring msi-battery-ring" style={{ "--battery": `${percent}%`, "--battery-value": percent } as CSSProperties}>
           <svg viewBox="0 0 100 100" role="img" aria-label={`${battery?.present ? battery.percent : "—"}% ${battery?.charging ? "charging" : "discharging"}`}>
             <circle className="battery-ring-track" cx="50" cy="50" r="46" />
@@ -442,7 +503,7 @@ function OperatingModeCard() {
   );
 }
 
-export function MsiCenterPage() {
+export function MsiCenterPage({ fullscreen = false }: { fullscreen?: boolean }) {
   const mainRef = useRef<HTMLElement>(null);
   const state = useSystemStore((s) => s.msiEcState);
   const telemetry = useSystemStore((s) => s.telemetry);
@@ -455,7 +516,7 @@ export function MsiCenterPage() {
   const value = (number: number | undefined) => number == null || Number.isNaN(number) ? "—" : String(Math.round(number));
 
   return (
-    <main ref={mainRef} className="msi-page">
+    <main ref={mainRef} className={`msi-page${fullscreen ? " msi-page-fullscreen" : ""}`}>
       <div className="msi-monitor-layout w-full">
         <section className="msi-metrics-row">
           <MetricCard title="CPU Temp" value={value(cpu)} unit="°C" accent={PINK} icon={<Activity size={15} />} history={cpu ? [cpu - 5, cpu - 2, cpu + 1, cpu - 3, cpu] : []} />

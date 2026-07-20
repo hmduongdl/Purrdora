@@ -1,5 +1,6 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
+import { Shield, Trash2 } from "lucide-react";
 import { useSystemStore } from "../../store/useSystemStore";
 import { WidgetFactory } from "./factory";
 
@@ -85,6 +86,11 @@ const ProgressBar = ({
 export const SystemMetricsWidget = memo(function SystemMetricsWidget() {
   const t = useSystemStore((s) => s.telemetry);
   const h = useSystemStore((s) => s.performanceHistory);
+  const clearRam = useSystemStore((s) => s.clearRamCache);
+  const cleanDisk = useSystemStore((s) => s.cleanDiskCache);
+  const [optimizationBusy, setOptimizationBusy] = useState<"ram" | "disk" | null>(null);
+  const [ramFlash, setRamFlash] = useState(0);
+  const [diskFlash, setDiskFlash] = useState(0);
 
   const cpu  = t?.cpu.total_usage_percent ?? 0;
   const ram  = t?.ram.usage_percent ?? 0;
@@ -119,12 +125,31 @@ export const SystemMetricsWidget = memo(function SystemMetricsWidget() {
       ? [t.storage]
       : [];
 
+  const optimize = async (kind: "ram" | "disk") => {
+    setOptimizationBusy(kind);
+    try {
+      if (kind === "ram") await clearRam();
+      else await cleanDisk();
+      if (kind === "ram") {
+        setRamFlash((flash) => flash + 1);
+        globalThis.setTimeout(() => setRamFlash(0), 950);
+      } else {
+        setDiskFlash((flash) => flash + 1);
+        globalThis.setTimeout(() => setDiskFlash(0), 950);
+      }
+    } catch (error) {
+      console.error("[system-optimization]", error);
+    } finally {
+      setOptimizationBusy(null);
+    }
+  };
+
   return (
-    <WidgetFactory title="CHỈ SỐ HỆ THỐNG">
-      <div className="flex flex-col gap-[clamp(10px,1.2vh,16px)]">
+    <WidgetFactory title="SYSTEM METRICS" className="system-metrics-widget">
+      <div className="system-metrics-content flex flex-col gap-[clamp(10px,1.2vh,16px)]">
         {/* 2 stat tiles */}
         <div className="grid grid-cols-2 gap-[clamp(8px,1vh,12px)]">
-          <div className="group relative min-w-0" tabIndex={0} aria-label="Nhiệt độ hệ thống; rê chuột để xem các cảm biến">
+          <div className="group relative min-w-0" tabIndex={0} aria-label="Nhiệt độ hệ thống; di chuột để xem chi tiết cảm biến">
             <StatTile
               label="NHIỆT ĐỘ TRUNG BÌNH"
               value={avgTemp != null ? avgTemp.toFixed(0) : "—"}
@@ -156,7 +181,7 @@ export const SystemMetricsWidget = memo(function SystemMetricsWidget() {
         </div>
 
         {/* Per-GPU bars, followed by CPU and RAM */}
-        <div className="flex flex-col gap-[clamp(8px,1vh,12px)]">
+        <div className="system-metrics-bars flex flex-col gap-[clamp(8px,1vh,12px)]">
           {t?.gpus.map((gpu, index) => (
             <ProgressBar
               key={`${gpu.name}-${index}`}
@@ -174,9 +199,10 @@ export const SystemMetricsWidget = memo(function SystemMetricsWidget() {
             textColor="text-primary"
           />
           <ProgressBar
+            key={`ram-${ramFlash}`}
             label="RAM"
             value={ram}
-            colorClass="progress-pink"
+            colorClass={ramFlash ? "progress-cache-cleaned" : "progress-pink"}
             textColor="text-pink-accent"
             extra={ramExtra}
           />
@@ -185,11 +211,22 @@ export const SystemMetricsWidget = memo(function SystemMetricsWidget() {
               key={`${mount.mount_point}-${index}`}
               label={`DISK ${mount.mount_point}`}
               value={mount.usage_percent}
-              colorClass={index % 2 === 0 ? "progress-cyan" : "progress-purple"}
+              colorClass={diskFlash ? "progress-cache-cleaned" : index % 2 === 0 ? "progress-cyan" : "progress-purple"}
               textColor={index % 2 === 0 ? "text-cyan-accent" : "text-primary"}
               extra={`(${mount.used_gb.toFixed(1)} / ${mount.total_gb.toFixed(1)} GiB)`}
             />
           ))}
+        </div>
+
+        <div className="border-t border-white/8 pt-[clamp(8px,1vh,12px)]">
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => void optimize("ram")} disabled={optimizationBusy !== null} className="flex items-center justify-center gap-1.5 rounded border border-white/10 bg-black/20 p-2 text-[9px] font-bold text-slate-400 transition-colors hover:border-cyan-accent/30 hover:text-cyan-accent disabled:cursor-wait disabled:opacity-50">
+              <Trash2 size={12} /> {optimizationBusy === "ram" ? "Đang xử lý…" : "Giải phóng RAM"}
+            </button>
+            <button type="button" onClick={() => void optimize("disk")} disabled={optimizationBusy !== null} className="flex items-center justify-center gap-1.5 rounded border border-white/10 bg-black/20 p-2 text-[9px] font-bold text-slate-400 transition-colors hover:border-pink-accent/30 hover:text-pink-accent disabled:cursor-wait disabled:opacity-50">
+              <Shield size={12} /> {optimizationBusy === "disk" ? "Đang xử lý…" : "Dọn dẹp ổ đĩa"}
+            </button>
+          </div>
         </div>
       </div>
     </WidgetFactory>

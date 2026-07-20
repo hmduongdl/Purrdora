@@ -5,6 +5,8 @@ import {
   BatteryMedium,
   CalendarDays,
   Clock3,
+  MonitorCog,
+  Ruler,
   Folder,
   Gamepad2,
   Globe,
@@ -16,7 +18,7 @@ import {
   Terminal,
   Wifi,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useSystemStore } from "../store/useSystemStore";
@@ -41,20 +43,12 @@ function BatteryIcon({ percent, charging }: { percent: number; charging: boolean
 export function BottomDock({
   activePage,
   onNavigate,
+  compact = false,
 }: {
   activePage: "dashboard" | "game" | "msi";
   onNavigate: (page: "dashboard" | "game" | "msi") => void;
+  compact?: boolean;
 }) {
-  const dockRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const dock = dockRef.current;
-    if (!dock) return;
-    const updateHeight = () => document.documentElement.style.setProperty("--dock-height", `${dock.getBoundingClientRect().height}px`);
-    updateHeight();
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(dock);
-    return () => observer.disconnect();
-  }, []);
   const latency = useSystemStore(
     (s) => s.telemetry?.network.latency_ms?.toFixed(0) ?? "—"
   );
@@ -62,10 +56,58 @@ export function BottomDock({
 
   const [now, setNow] = useState(() => new Date());
   const [network, setNetwork] = useState({ ip: "—", isVietnam: false });
+  const [identity, setIdentity] = useState({ hostname: "—", os_name: "—" });
+  const [windowDebug, setWindowDebug] = useState(() => ({
+    physicalWidth: Math.round(window.innerWidth * window.devicePixelRatio),
+    physicalHeight: Math.round(window.innerHeight * window.devicePixelRatio),
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+    scaleFactor: window.devicePixelRatio,
+  }));
+
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+    let cancelled = false;
+    let fetching = false;
+
+    const fetchWindowSize = async () => {
+      if (fetching) return;
+      fetching = true;
+      try {
+        const size = await appWindow.innerSize();
+        if (!cancelled) {
+          setWindowDebug({
+            physicalWidth: size.width,
+            physicalHeight: size.height,
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight,
+            scaleFactor: window.devicePixelRatio,
+          });
+        }
+      } catch {
+        // Keep the latest successful sample while the native window changes state.
+      } finally {
+        fetching = false;
+      }
+    };
+
+    void fetchWindowSize();
+    const timer = window.setInterval(() => void fetchWindowSize(), 250);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1_000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    invoke<{ hostname: string; os_name: string }>("get_system_identity")
+      .then(setIdentity)
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -139,7 +181,7 @@ export function BottomDock({
   };
 
   return (
-    <div ref={dockRef} className="fixed inset-x-4 bottom-4 z-[100] mx-auto w-auto overflow-hidden">
+    <div className="dock-region z-[100] w-full shrink-0 overflow-hidden px-4 pb-4">
       <div className="glass-panel flex min-w-0 items-center justify-between bg-black/60 backdrop-blur-2xl rounded-2xl p-2.5 border-white/10 shadow-2xl">
         {/* Nav icon buttons */}
         <div className="flex min-w-0 items-center gap-1">
@@ -169,7 +211,33 @@ export function BottomDock({
         </div>
 
         {/* Status badges */}
-        <div className="flex items-center gap-4 h-10 rounded-xl border border-white/5 bg-black/40 px-4">
+        <div className={`${compact ? "hidden" : "flex"} items-center gap-4 h-10 rounded-xl border border-white/5 bg-black/40 px-4`}>
+          <div
+            className="flex min-w-0 max-w-56 items-center gap-2"
+            title={`${identity.hostname} · ${identity.os_name}`}
+          >
+            <MonitorCog size={15} className="shrink-0 text-primary" />
+            <div className="min-w-0 leading-none">
+              <div className="truncate text-[11px] font-bold text-slate-200">{identity.hostname}</div>
+              <div className="mt-1.5 truncate text-[8px] text-slate-400">{identity.os_name}</div>
+            </div>
+          </div>
+
+          <div className="h-4 w-px bg-white/10" />
+
+          <div
+            className="flex shrink-0 items-center gap-1.5"
+            title={`Kích thước thực: ${windowDebug.physicalWidth}×${windowDebug.physicalHeight}px · Kích thước hiển thị: ${windowDebug.viewportWidth}×${windowDebug.viewportHeight}px · Tỉ lệ: ${windowDebug.scaleFactor.toFixed(2)}x`}
+          >
+            <Ruler size={13} className="text-amber-300" />
+            <div className="font-mono leading-none">
+              <div className="text-[10px] font-bold text-slate-200">{windowDebug.physicalWidth}×{windowDebug.physicalHeight}</div>
+              <div className="mt-1 text-[7px] text-slate-500">VP {windowDebug.viewportWidth}×{windowDebug.viewportHeight} · {windowDebug.scaleFactor.toFixed(2)}x</div>
+            </div>
+          </div>
+
+          <div className="h-4 w-px bg-white/10" />
+
           <div className="flex items-center gap-1.5 text-slate-300" title="Ngày tại Việt Nam (GMT+7)">
             <CalendarDays size={13} className="text-cyan-accent" />
             <span className="font-mono text-[10px] font-semibold">{vietnamDate}</span>

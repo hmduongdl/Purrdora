@@ -10,6 +10,7 @@ import {
   ListOrdered,
   Music2,
   Timer,
+  Monitor,
   Zap,
 } from "lucide-react";
 
@@ -23,9 +24,10 @@ interface WidgetFactoryProps {
 
 const ICON_MAP: Record<string, ReactNode> = {
   "ĐANG PHÁT":        <Music2 size={14} strokeWidth={2} />,
-  "TRẠNG THÁI GAME":  <Gamepad2 size={14} strokeWidth={2} />,
+  "GAME STATUS":  <Gamepad2 size={14} strokeWidth={2} />,
   "AUDIO / MIXER":    <Headphones size={14} strokeWidth={2} />,
-  "CHỈ SỐ HỆ THỐNG": <Activity size={14} strokeWidth={2} />,
+  "SYSTEM METRICS": <Activity size={14} strokeWidth={2} />,
+  "MÀN HÌNH":          <Monitor size={14} strokeWidth={2} />,
   "THÔNG SỐ PHẦN CỨNG": <HardDrive size={14} strokeWidth={2} />,
   "LỊCH SỬ HIỆU NĂNG": <History size={14} strokeWidth={2} />,
   "CÔNG CỤ PHIÊN":    <Timer size={14} strokeWidth={2} />,
@@ -37,9 +39,10 @@ const ICON_MAP: Record<string, ReactNode> = {
 
 const COLOR_MAP: Record<string, string> = {
   "ĐANG PHÁT":           "text-primary",
-  "TRẠNG THÁI GAME":     "text-emerald-400",
+  "GAME STATUS":     "text-emerald-400",
   "AUDIO / MIXER":       "text-cyan-accent",
-  "CHỈ SỐ HỆ THỐNG":    "text-cyan-accent",
+  "SYSTEM METRICS":    "text-cyan-accent",
+  "MÀN HÌNH":           "text-cyan-accent",
   "THÔNG SỐ PHẦN CỨNG": "text-on-surface-variant",
   "LỊCH SỬ HIỆU NĂNG":  "text-primary",
   "CÔNG CỤ PHIÊN":       "text-primary",
@@ -61,17 +64,17 @@ export const WidgetFactory = memo(function WidgetFactory({
 
   return (
     <div
-      className={`glass-panel flex min-h-0 flex-col ${className}`}
+      className={`adaptive-card glass-panel flex min-h-0 flex-col ${className}`}
       style={{
-        padding: "clamp(10px, 1.2vh, 16px)",
-        gap: "clamp(8px, 1vh, 12px)",
+        padding: "var(--widget-padding, clamp(10px, 1.2vh, 16px))",
+        gap: "var(--widget-gap, clamp(8px, 1vh, 12px))",
       }}
     >
       <h3 className={`header-small-caps flex items-center gap-2 text-[10px] md:text-[11px] ${resolvedColor}`}>
         {resolvedIcon}
         {title}
       </h3>
-      <div className="flex-1 min-h-0 flex flex-col justify-between">{children}</div>
+      <div className="widget-content flex-1 min-h-0 flex flex-col justify-between">{children}</div>
     </div>
   );
 });

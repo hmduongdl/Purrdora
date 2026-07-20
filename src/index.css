@@ -84,6 +84,10 @@ body {
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.2); border-radius: 10px; }
 
+.connected-device-list {
+  overscroll-behavior: contain;
+}
+
 .big-number {
   font-family: 'Geist', sans-serif;
   font-weight: 700;
@@ -97,34 +101,652 @@ body {
 .progress-purple { background: var(--primary); }
 .progress-pink { background: var(--pink); }
 
+@keyframes cache-cleaned-flash {
+  0%, 100% { opacity: .35; box-shadow: none; }
+  50% { opacity: 1; box-shadow: 0 0 8px rgba(34, 197, 94, .9); }
+}
+
+.progress-cache-cleaned {
+  background: #22c55e;
+  animation: cache-cleaned-flash 280ms ease-in-out 3;
+}
+
+.display-layout-map {
+  position: relative;
+  min-height: 92px;
+  overflow: hidden;
+  border: 1px solid rgba(34, 211, 238, .13);
+  border-radius: 8px;
+  background: radial-gradient(circle at center, rgba(34, 211, 238, .08), transparent 70%), rgba(0, 0, 0, .2);
+}
+
+.display-layout-screen {
+  position: absolute;
+  display: grid;
+  min-width: 24px;
+  min-height: 24px;
+  place-items: center;
+  transform: translate(2px, 2px);
+  border: 1px solid rgba(148, 163, 184, .42);
+  border-radius: 4px;
+  background: rgba(30, 41, 59, .65);
+  color: #cbd5e1;
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.display-layout-screen-primary {
+  border-color: rgba(34, 211, 238, .8);
+  background: rgba(8, 145, 178, .24);
+  color: #67e8f9;
+  box-shadow: 0 0 12px rgba(34, 211, 238, .15);
+}
+
+.dashboard-main {
+  padding: clamp(8px, 1.2vw, 24px);
+  padding-bottom: 16px;
+}
+
+/* BottomDock is fixed. Reserve its exact footprint in every full-height page
+   frame so each page's own scroll container ends above it. */
+.app-page-frame {
+  box-sizing: border-box;
+  padding-bottom: calc(var(--dock-height, 68px) + 16px);
+}
+
 .dashboard-columns {
+  --dashboard-gap: clamp(12px, 1.5vw, 24px);
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(12px, 1.5vw, 24px);
-  overflow: hidden;
-  height: 100%;
+  gap: var(--dashboard-gap);
+  align-items: stretch;
+  min-height: 100%;
 }
 
 @media (max-width: 900px) {
   .dashboard-columns {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .dashboard-left-area { grid-column: span 2; }
 }
 
 @media (max-width: 600px) {
   .dashboard-columns {
     grid-template-columns: minmax(0, 1fr);
   }
+  .dashboard-left-area { grid-column: auto; grid-template-columns: minmax(0, 1fr); }
 }
 
 .dashboard-column {
   min-width: 0;
-  min-height: 0;
+  min-height: auto;
   display: flex;
   flex-direction: column;
-  gap: clamp(10px, 1.2vw, 24px);
+  gap: var(--dashboard-gap);
+  overflow: visible;
+}
+
+/* A column may be shorter than its content when the dock or the shortcut row
+   takes space. Never squeeze cards: shrinking a flex item made its children
+   paint outside the panel (Audio upward, Display controls downward). */
+.dashboard-column > * {
+  flex-shrink: 0;
+}
+
+.dashboard-left-area {
+  grid-column: span 2;
+  display: grid;
+  min-width: 0;
+  min-height: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto;
+  gap: var(--dashboard-gap);
+  align-content: stretch;
+}
+
+/* Tauri fullscreen is a window state rather than the browser Fullscreen API,
+   so the class is applied by Layout. */
+.dashboard-fullscreen {
+  position: relative;
+  padding: clamp(16px, 1.4vw, 28px);
+  padding-bottom: 16px;
+}
+
+.dashboard-fullscreen .dashboard-columns {
+  box-sizing: border-box;
+  padding-top: clamp(60px, 6vh, 78px);
+}
+
+.dashboard-fullscreen .app-brand {
+  position: absolute;
+  z-index: 2;
+  top: clamp(18px, 1.6vw, 28px);
+  right: clamp(16px, 1.4vw, 28px);
+  left: clamp(16px, 1.4vw, 28px);
+  min-height: clamp(40px, 4vh, 52px);
+}
+
+.dashboard-fullscreen .app-brand-status {
+  display: flex;
+}
+
+.dashboard-fullscreen .dashboard-left-area {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.dashboard-fullscreen .dashboard-column {
+  overflow-y: auto;
+}
+
+.dashboard-fullscreen .media-player-widget {
+  flex: 0 0 clamp(300px, 34vh, 440px);
+}
+
+.dashboard-fullscreen .media-track-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  gap: clamp(8px, 1vh, 14px);
+}
+
+.dashboard-fullscreen .media-artwork {
+  width: min(100%, 58%);
+  height: auto;
+  min-height: 0;
+  align-self: center;
+  aspect-ratio: 16 / 9;
+}
+
+.dashboard-fullscreen .media-artwork img {
+  image-rendering: -webkit-optimize-contrast;
+  filter: contrast(1.025) saturate(1.035);
+}
+
+.dashboard-fullscreen .media-track-details {
+  flex: 0 0 auto;
+  gap: 3px;
+}
+
+.dashboard-fullscreen .media-track-title,
+.dashboard-fullscreen .media-track-artist {
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+}
+
+.dashboard-fullscreen .media-track-title {
+  -webkit-line-clamp: 2;
+  font-size: clamp(13px, 1.1vw, 16px);
+}
+
+.dashboard-fullscreen .media-track-artist {
+  -webkit-line-clamp: 1;
+  font-size: clamp(10px, .8vw, 12px);
+}
+
+.dashboard-fullscreen .display-layout-widget {
+  /* Its content contains the map, display rows and a settings button. Keep
+     enough room for the button so System Metrics never overlays it. */
+  flex: 0 0 clamp(350px, 36vh, 420px);
+  min-height: clamp(350px, 36vh, 420px);
+}
+
+.dashboard-fullscreen .display-layout-map {
+  min-height: clamp(128px, 16vh, 190px);
+}
+
+.dashboard-fullscreen .dashboard-right-column {
+  overflow-y: auto;
+  padding-bottom: 2px;
+}
+
+.dashboard-fullscreen .session-tools-widget {
+  flex: 0 0 clamp(330px, 31vh, 370px);
+}
+
+.dashboard-fullscreen .top-processes-widget {
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
+/* The 16:9 media card deliberately gets the visual priority in fullscreen.
+   Keep Connected Devices compact and scroll its list instead of letting the
+   card extend below the shortcut row. */
+.dashboard-fullscreen .system-metrics-content > .grid {
+  min-height: clamp(94px, 10vh, 128px);
+}
+
+.dashboard-fullscreen .system-metrics-content > .grid > .rounded-lg,
+.dashboard-fullscreen .system-metrics-content > .grid > .group > .rounded-lg {
+  height: 100%;
+}
+
+.dashboard-fullscreen .session-tools-widget > .widget-content,
+.dashboard-fullscreen .top-processes-widget > .widget-content {
+  overflow: hidden;
+  padding-right: 2px;
+}
+
+/* Compact dashboard chrome on shorter windows. */
+@media (max-height: 1100px) and (min-width: 601px) {
+  .dashboard-main {
+    padding: 10px 12px;
+    padding-bottom: 16px;
+  }
+
+  .dashboard-columns {
+    --dashboard-gap: 12px;
+    --widget-padding: 9px;
+    --widget-gap: 7px;
+  }
+
+  .dashboard-left-area {
+    grid-template-rows: auto minmax(104px, 1fr);
+  }
+
+  .dashboard-columns .app-brand { min-height: 38px; }
+  .dashboard-columns .app-brand-logo { width: 36px; height: 36px; }
+  .display-layout-map { min-height: 76px; }
+  .system-metrics-content { gap: 7px; }
+  .system-metrics-bars { gap: 5px; }
+
+  .system-metrics-bars > div > div:last-child {
+    margin-top: 2px;
+    height: 5px;
+  }
+
+}
+
+/* At minimum practical height, tighten spacing while the dashboard itself
+   remains scrollable, so no card content is clipped. */
+@media (max-height: 900px) and (min-width: 601px) {
+  .dashboard-main {
+    padding: 8px;
+    padding-bottom: 16px;
+  }
+
+  .dashboard-columns {
+    --dashboard-gap: 8px;
+    --widget-padding: 8px;
+    --widget-gap: 6px;
+    min-height: 100%;
+  }
+
+  .dashboard-left-area {
+    height: auto;
+    grid-template-rows: auto;
+    overflow: visible;
+  }
+
+  .display-layout-widget { max-height: clamp(210px, 30vh, 270px); }
+  .display-layout-widget > .widget-content {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 2px;
+  }
+
+  .display-layout-map { min-height: 64px; }
+
+  .dashboard-right-column {
+    height: auto;
+    overflow: visible;
+  }
+
+  .top-process-list { row-gap: 5px; }
+}
+
+@media (max-width: 600px) {
+  .dashboard-left-area {
+    grid-column: auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+}
+
+/* Windowed desktop layout: each visual column owns the usable viewport above
+   the dock. Cards keep their natural minimum size; a column scrolls when the
+   window is too short, while useful trailing cards consume spare space. */
+@media (min-width: 901px) {
+  .dashboard-main:not(.dashboard-fullscreen) {
+    overflow-y: hidden;
+  }
+
+  .dashboard-main:not(.dashboard-fullscreen) .dashboard-columns {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .dashboard-main:not(.dashboard-fullscreen) .dashboard-left-area,
+  .dashboard-main:not(.dashboard-fullscreen) .dashboard-right-column {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .dashboard-main:not(.dashboard-fullscreen) .dashboard-left-area {
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .dashboard-main:not(.dashboard-fullscreen) .dashboard-column {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .dashboard-main:not(.dashboard-fullscreen) .connected-devices-widget,
+  .dashboard-main:not(.dashboard-fullscreen) .system-metrics-widget {
+    flex: 1 0 auto;
+  }
+
+  .dashboard-main:not(.dashboard-fullscreen) .connected-device-list,
+  .dashboard-main:not(.dashboard-fullscreen) .system-metrics-content {
+    flex: 1 1 auto;
+  }
+
+  .dashboard-main:not(.dashboard-fullscreen) .system-metrics-content {
+    justify-content: space-between;
+  }
+
+  .dashboard-main:not(.dashboard-fullscreen) .top-processes-widget {
+    flex: 0 0 auto;
+  }
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: clamp(9px, 1vw, 14px);
+  min-height: clamp(42px, 5vh, 56px);
+  padding: clamp(3px, .45vh, 6px) clamp(2px, .35vw, 5px);
+}
+
+.app-brand-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: clamp(9px, 1vw, 14px);
+}
+
+.app-brand-status {
+  display: none;
+  position: absolute;
+  left: 50%;
+  align-items: center;
+  gap: 0;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border: 1px solid rgba(139, 92, 246, .28);
+  border-radius: 999px;
+  background: rgba(21, 21, 30, .9);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .26), 0 0 18px rgba(139, 92, 246, .08);
+  color: #d4d8e4;
+  font-family: var(--font-mono);
+  font-size: clamp(10px, .9vw, 12px);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.app-brand-status span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 clamp(8px, .8vw, 13px);
+}
+
+.app-brand-status span + span { border-left: 1px solid rgba(255, 255, 255, .11); }
+.app-brand-status b { color: #f1f5f9; }
+.app-brand-status small { max-width: 110px; overflow: hidden; color: #94a3b8; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+
+.app-brand-status span:first-child svg { color: #a78bfa; }
+.app-brand-status span:nth-child(2) svg { color: var(--cyan); }
+.app-brand-status span:nth-child(3) svg { color: var(--pink); }
+.app-brand-status span:nth-child(4) svg { color: #34d399; }
+.app-brand-status span:nth-child(5) svg { color: #34d399; }
+.app-brand-status span:nth-child(6) svg { color: #f472b6; }
+
+.app-brand-logo {
+  width: clamp(38px, 4.4vh, 50px);
+  height: clamp(38px, 4.4vh, 50px);
+  flex: 0 0 auto;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 8px 24px rgba(139, 92, 246, .22);
+}
+
+.app-brand-name {
+  color: #f1eff7;
+  font-size: clamp(16px, 1.45vw, 21px);
+  font-weight: 800;
+  letter-spacing: -.025em;
+  line-height: 1.05;
+}
+
+.app-brand-version {
+  margin-top: 3px;
+  color: #94a3b8;
+  font-family: var(--font-mono);
+  font-size: clamp(8px, .72vw, 10px);
+  letter-spacing: .06em;
+}
+
+.app-brand-socials {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.app-brand-social-button {
+  display: inline-flex;
+  width: clamp(26px, 2.7vh, 31px);
+  height: clamp(26px, 2.7vh, 31px);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .04);
+  color: #94a3b8;
+  transition: color .16s ease, border-color .16s ease, background .16s ease, transform .16s ease;
+}
+
+.app-brand-social-button:hover {
+  border-color: rgba(139, 92, 246, .65);
+  background: rgba(139, 92, 246, .16);
+  color: #e9ddff;
+  transform: translateY(-1px);
+}
+
+.app-brand-social-facebook span {
+  font-family: Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateY(1px);
+}
+
+/* ── Fullscreen viewport system ────────────────────────────────────────────
+   A 16–27 inch display can expose anything from a short 1366×768 desktop to
+   a tall QHD/4K panel. These rules use the available viewport, not a physical
+   size, and preserve the shared top/bottom grid lines at every size. */
+.dashboard-fullscreen,
+.game-page-main-fullscreen,
+.msi-page-fullscreen {
+  /* Keep page cards below the fixed fullscreen header. The header can be as
+     tall as its logo, so its top inset alone is not enough clearance. */
+  --fs-header-inset: clamp(18px, 1.6vw, 28px);
+  --fs-header-height: clamp(42px, 5vh, 56px);
+  --fs-header-space: calc(var(--fs-header-inset) + var(--fs-header-height) + 12px);
+}
+
+.dashboard-fullscreen {
+  --fs-gap: clamp(8px, 1vw, 20px);
+  --fs-footer-clearance: clamp(28px, 5vh, 72px);
+  padding: clamp(12px, 1.25vw, 28px);
+  padding-top: var(--fs-header-space);
+  padding-bottom: 16px;
+}
+
+.dashboard-fullscreen .dashboard-columns {
+  --dashboard-gap: var(--fs-gap);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 0;
+}
+
+.dashboard-fullscreen .dashboard-left-area,
+.dashboard-fullscreen .dashboard-right-column {
+  height: 100%;
+  min-height: 0;
+}
+
+.dashboard-fullscreen .dashboard-left-area {
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.dashboard-fullscreen .dashboard-column {
+  height: 100%;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+/* The fixed cards establish the upper rhythm. The cards below use remaining
+   space so their baselines remain in sync. */
+.dashboard-fullscreen .media-player-widget {
+  flex: 0 0 clamp(230px, 24vh, 300px);
+}
+
+.dashboard-fullscreen .display-layout-widget {
+  flex: 0 0 clamp(280px, 32vh, 400px);
+  min-height: clamp(280px, 32vh, 400px);
+}
+
+.dashboard-fullscreen .system-metrics-widget {
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
+.dashboard-fullscreen .session-tools-widget > .widget-content,
+.dashboard-fullscreen .display-layout-widget > .widget-content {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+
+.dashboard-fullscreen .session-tools-widget {
+  flex: 0 0 clamp(260px, 30vh, 370px);
+  min-height: 0;
+}
+
+.dashboard-fullscreen .top-processes-widget {
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
+/* Short 16/20-inch laptop and desktop panels: preserve the three columns,
+   compact the upper cards, then let dense content scroll inside its card. */
+@media (max-height: 900px) and (min-width: 1101px) {
+  .dashboard-fullscreen,
+  .game-page-main-fullscreen,
+  .msi-page-fullscreen {
+    --fs-gap: 8px;
+    --fs-footer-clearance: 24px;
+  }
+
+  .dashboard-fullscreen .media-player-widget { flex-basis: clamp(220px, 22vh, 260px); }
+  .dashboard-fullscreen .display-layout-widget { flex-basis: clamp(260px, 34vh, 310px); min-height: clamp(260px, 34vh, 310px); }
+  .dashboard-fullscreen .display-layout-map { min-height: clamp(112px, 15vh, 148px); }
+  .dashboard-fullscreen .session-tools-widget { flex-basis: clamp(230px, 29vh, 285px); }
+}
+
+/* Medium-sized 16-inch laptop screens (height 901px to 1199px) at high-DPI scaling:
+   balance widget size and gap to ensure Top Processes and charts have enough room. */
+@media (min-height: 901px) and (max-height: 1199px) and (min-width: 1101px) {
+  .dashboard-fullscreen,
+  .game-page-main-fullscreen,
+  .msi-page-fullscreen {
+    --fs-gap: 12px;
+    --fs-footer-clearance: 36px;
+  }
+
+  .dashboard-fullscreen .media-player-widget { flex-basis: clamp(230px, 24vh, 280px); }
+  .dashboard-fullscreen .display-layout-widget { flex-basis: clamp(280px, 30vh, 340px); min-height: clamp(280px, 30vh, 340px); }
+  .dashboard-fullscreen .display-layout-map { min-height: clamp(120px, 13vh, 160px); }
+  .dashboard-fullscreen .session-tools-widget { flex-basis: clamp(250px, 27vh, 310px); }
+
+  .game-page-fullscreen .dashboard-column:nth-child(2) > :last-child { flex-basis: clamp(170px, 23vh, 210px); }
+
+  .msi-page-fullscreen .msi-metrics-row { flex-basis: clamp(96px, 13vh, 128px); }
+  .msi-page-fullscreen .msi-card { padding: 14px; }
+  .msi-page-fullscreen .msi-option-compact { min-height: 38px; font-size: 8.5px; }
+}
+
+/* Larger 24/27-inch and high-resolution screens get more chart/list space. */
+@media (min-height: 1200px) and (min-width: 1400px) {
+  .dashboard-fullscreen,
+  .game-page-main-fullscreen,
+  .msi-page-fullscreen {
+    --fs-gap: clamp(14px, 1.1vw, 24px);
+  }
+
+  .dashboard-fullscreen .media-player-widget { flex-basis: clamp(280px, 25vh, 360px); }
+  .dashboard-fullscreen .display-layout-widget { flex-basis: clamp(360px, 32vh, 440px); min-height: clamp(360px, 32vh, 440px); }
+  .dashboard-fullscreen .display-layout-map { min-height: clamp(160px, 17vh, 230px); }
+  .dashboard-fullscreen .session-tools-widget { flex-basis: clamp(350px, 30vh, 430px); }
+}
+
+/* A QHD (2560×1440) viewport has enough room for the information rows but
+   not the extra 30px used by the enlarged map above. Keep the map proportionate
+   here so the settings button remains fully visible inside its card. */
+@media (min-height: 1200px) and (max-height: 1599px) and (min-width: 1400px) {
+  .dashboard-fullscreen .display-layout-map {
+    min-height: clamp(148px, 15vh, 200px);
+  }
+}
+
+/* Display details include the screen map, output rows, and settings action.
+   Let the panel grow for all of them instead of clipping the action at the
+   bottom of a fixed fullscreen card. */
+.dashboard-fullscreen .display-layout-widget {
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
+.dashboard-fullscreen .display-layout-widget > .widget-content {
+  overflow: visible;
+}
+
+/* Retain the current three-column composition down to 1100 CSS pixels. Below
+   that threshold the existing two/one-column fallbacks take over safely. */
+@media (min-width: 1101px) {
+  .dashboard-fullscreen .dashboard-columns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dashboard-fullscreen .dashboard-left-area { grid-column: span 2; }
+}
+
+@media (max-width: 1360px) {
+  .dashboard-fullscreen .app-brand-status { padding: 6px 9px; font-size: 9px; }
+  .dashboard-fullscreen .app-brand-status span { padding-inline: 7px; }
+  .dashboard-fullscreen .app-brand-status small { max-width: 72px; }
+}
+
+@media (max-width: 1100px) {
+  .dashboard-fullscreen .app-brand-status span:nth-child(2),
+  .dashboard-fullscreen .app-brand-status small { display: none; }
+}
+
+@media (max-width: 420px) {
+  .app-brand { flex-wrap: wrap; }
+  .app-brand-socials { width: 100%; margin-left: 0; }
 }
 
 .metric-tile {
@@ -202,7 +824,7 @@ body {
   .power-profile-indicator, .audio-output-menu, .audio-mute-button svg, .power-profile-icon { animation: none; transition-duration: .01ms; }
 }
 
-.msi-page { width: 100%; max-width: 100%; min-width: 0; height: 100%; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; background: radial-gradient(circle at 80% 0%, rgba(236,28,111,.07), transparent 34%), #0a0a0f; padding: clamp(8px, 1.2vw, 24px); padding-bottom: calc(var(--dock-height, 68px) + 32px); }
+.msi-page { width: 100%; max-width: 100%; min-width: 0; height: calc(100% - var(--dock-height, 68px) - 16px); overflow-y: auto; overflow-x: hidden; box-sizing: border-box; background: radial-gradient(circle at 80% 0%, rgba(236,28,111,.07), transparent 34%), #0a0a0f; padding: clamp(8px, 1.2vw, 24px); padding-bottom: 24px; }
 .msi-page .dashboard-column > * { max-width: 100%; }
 .msi-monitor-layout { display: flex; min-width: 0; min-height: 0; flex-direction: column; gap: 12px; }
 .msi-metrics-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; min-width: 0; min-height: 0; align-items: start; }
@@ -213,12 +835,12 @@ body {
 .msi-details-row > .msi-operating-card { height: 100%; }
 .msi-utility-row { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.7fr); align-items: stretch; gap: 12px; min-width: 0; min-height: 0; }
 .msi-utility-row > .msi-card { width: 100%; }
-.msi-utility-row > .msi-battery-master { height: 100%; }
+.msi-utility-row > .msi-battery-master { height: auto; align-self: start; }
 .msi-utility-stack { display: flex; min-width: 0; min-height: 0; max-width: 100%; flex-direction: column; gap: 12px; overflow: hidden; }
 .msi-utility-stack > .msi-card { width: 100%; }
 .msi-keyboard-card { flex: 0 0 auto; min-height: 74px; }
 .msi-operating-card { flex: 1 1 0; }
-.msi-utility-row .msi-battery-ring { width: min(clamp(72px, 13vh, 122px), 58%); height: auto; aspect-ratio: 1; flex: 0 1 auto; }
+.msi-utility-row .msi-battery-ring { width: min(clamp(72px, 13vh, 122px), 58%); height: auto; aspect-ratio: 1; flex: 0 0 auto; }
 .msi-utility-row .msi-battery-ring strong { font-size: clamp(24px, 3.2vh, 32px); }
 .msi-utility-row .msi-battery-ring span { font-size: 7px; }
 .msi-card { min-width: 0; border: 1px solid rgba(148,163,184,.16); border-radius: 14px; background: linear-gradient(145deg, rgba(24,25,32,.96), rgba(15,16,21,.96)); box-shadow: 0 16px 45px rgba(0,0,0,.18); }
@@ -280,7 +902,7 @@ body {
 }
 
 @media (max-width: 600px) {
-  .msi-page { padding-inline: 8px; padding-bottom: calc(var(--dock-height, 68px) + 32px); }
+  .msi-page { padding-inline: 8px; padding-bottom: 24px; }
   .msi-metrics-row { gap: 8px; }
   .msi-details-row, .msi-utility-row { gap: 8px; }
   .msi-hardware-control, .msi-battery-master, .msi-keyboard-card, .msi-operating-card { padding: 10px; }
@@ -301,4 +923,843 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* The F11 header is application chrome, rendered once by App for every page.
+   Each fullscreen page reserves the same --fs-header-space above its cards. */
+.fullscreen-app-header {
+  position: fixed;
+  z-index: 90;
+  top: var(--fs-header-inset, clamp(18px, 1.6vw, 28px));
+  right: clamp(16px, 1.4vw, 28px);
+  left: clamp(16px, 1.4vw, 28px);
+  min-height: clamp(40px, 4vh, 52px);
+}
+
+.fullscreen-app-header .app-brand-status { display: flex; }
+
+/* The dock is part of the app shell, not a fixed/sticky overlay. Its own flex
+   row is therefore the lower boundary for every page: page content can scroll
+   up to it, but can never paint or be hidden underneath it. */
+.app-shell {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0a0a0f;
+}
+
+.app-page-frame,
+.msi-page {
+  min-height: 0;
+  flex: 1 1 0;
+}
+
+.app-page-frame {
+  padding-bottom: 0;
+}
+
+.dock-region {
+  background: #0a0a0f;
+}
+
+.dock-region > .glass-panel {
+  width: 100%;
+}
+
+.msi-page {
+  height: auto;
+  padding-bottom: 24px;
+}
+
+/* Fullscreen keeps the header as chrome, but never constrains page content to
+   a fixed card grid. The page-level scroller remains the single safe overflow
+   boundary above the dock. */
+.game-page-main-fullscreen {
+  overflow-y: auto;
+}
+
+.game-page-fullscreen .dashboard-columns,
+.game-page-fullscreen .dashboard-column,
+.game-page-fullscreen .dashboard-column > .glass-panel {
+  height: auto;
+  min-height: auto;
+  overflow: visible;
+}
+
+.game-page-fullscreen .dashboard-column > .glass-panel > .widget-content {
+  overflow: visible;
+}
+
+.msi-page-fullscreen {
+  height: auto;
+  overflow-y: auto;
+}
+
+.msi-page-fullscreen .msi-monitor-layout,
+.msi-page-fullscreen .msi-details-row {
+  height: auto;
+  overflow: visible;
+}
+
+/* Use intrinsic rows after leaving the old fixed fullscreen grid. Without
+   this, flex-basis: 0 from that grid collapses the MSI detail area. */
+.msi-page-fullscreen .msi-metrics-row,
+.msi-page-fullscreen .msi-details-row {
+  flex: 0 0 auto;
+}
+
+.msi-page-fullscreen .msi-details-row {
+  min-height: auto;
+  grid-template-rows: max-content max-content;
+}
+
+.msi-page-fullscreen .msi-utility-row,
+.msi-page-fullscreen .msi-utility-stack {
+  overflow: visible;
+}
+
+/* ── MSI adaptive viewport layout ─────────────────────────────────────────
+   The page receives only the app-shell space above the dock. On desktop that
+   exact area becomes a two-tier grid, so every card grows and shrinks with the
+   window without producing an unused lower region. Dense card bodies own
+   their overflow; narrow layouts fall back to one page-level scroller. */
+@media (min-width: 901px) {
+  .msi-page {
+    display: block;
+    height: auto;
+    min-height: 0;
+    flex: 1 1 0;
+    overflow: hidden;
+  }
+
+  .msi-page .msi-monitor-layout {
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: clamp(104px, 17%, 156px) minmax(0, 1fr);
+    gap: clamp(8px, 1.1vh, 14px);
+    overflow: hidden;
+  }
+
+  .msi-page .msi-metrics-row {
+    height: 100%;
+    min-height: 0;
+    flex: none;
+    align-items: stretch;
+    gap: clamp(8px, 1.1vh, 14px);
+  }
+
+  .msi-page .msi-metrics-row > .msi-card {
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .msi-page .msi-details-row {
+    height: 100%;
+    min-height: 0;
+    flex: none;
+    grid-template-rows: minmax(0, 1.25fr) minmax(0, .85fr);
+    gap: clamp(8px, 1.1vh, 14px);
+    overflow: hidden;
+  }
+
+  .msi-page .msi-details-row > .msi-card,
+  .msi-page .msi-utility-row > .msi-card,
+  .msi-page .msi-utility-stack > .msi-card {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .msi-page .msi-utility-row {
+    height: 100%;
+    min-height: 0;
+    gap: clamp(8px, 1.1vh, 14px);
+    overflow: hidden;
+  }
+
+  .msi-page .msi-utility-row > .msi-battery-master {
+    height: 100%;
+    min-height: 0;
+    align-self: stretch;
+  }
+
+  .msi-page .msi-utility-stack {
+    height: 100%;
+    min-height: 0;
+    gap: clamp(8px, 1.1vh, 14px);
+    overflow: hidden;
+  }
+
+  .msi-page .msi-operating-card {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  /* Hardware Control is always fully visible; its vertical rhythm scales with
+     the available viewport instead of becoming another scroll container. */
+  .msi-page .msi-hardware-control {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+    padding: clamp(10px, 1.45vh, 16px);
+  }
+
+  .msi-page .msi-hardware-control .msi-control-group,
+  .msi-page .msi-hardware-control .msi-cooler-boost,
+  .msi-page .msi-hardware-control .msi-hardware-monitoring {
+    margin-top: clamp(6px, .9vh, 10px);
+  }
+
+  .msi-page .msi-hardware-control .msi-label {
+    margin-bottom: clamp(3px, .45vh, 5px);
+    font-size: clamp(8px, .9vh, 10px);
+  }
+
+  .msi-page .msi-hardware-control .msi-option-compact {
+    min-height: clamp(30px, 3.8vh, 38px);
+  }
+
+  .msi-page .msi-hardware-control .msi-cooler-boost {
+    min-height: clamp(30px, 3.8vh, 38px);
+    padding-block: clamp(5px, .7vh, 8px);
+  }
+
+  .msi-page .msi-hardware-control .msi-auto-fan {
+    min-height: clamp(28px, 3.5vh, 36px);
+    padding-block: clamp(4px, .55vh, 7px);
+  }
+
+  .msi-page .msi-hardware-monitoring {
+    min-height: 0;
+    padding-top: clamp(6px, .8vh, 10px);
+  }
+
+  .msi-page .msi-monitoring-title {
+    margin-bottom: clamp(4px, .55vh, 7px);
+  }
+
+  .msi-page .msi-monitoring-grid {
+    grid-template-columns: minmax(104px, 132px) minmax(0, 1fr);
+    gap: clamp(8px, 1vw, 14px);
+  }
+
+  .msi-page .msi-hardware-control .usage-ring {
+    width: clamp(38px, 5.2vh, 54px);
+  }
+
+  .msi-page .msi-hardware-control .usage-ring strong {
+    font-size: clamp(14px, 1.8vh, 18px);
+  }
+
+  .msi-page .msi-resource-usage {
+    padding: clamp(6px, .8vh, 9px);
+  }
+
+  .msi-page .msi-resource-usage > div:nth-child(2),
+  .msi-page .msi-resource-usage > div:nth-child(3) {
+    margin-top: clamp(4px, .55vh, 7px);
+  }
+}
+
+@media (min-width: 901px) and (max-height: 780px) {
+  .msi-page .msi-monitor-layout {
+    grid-template-rows: clamp(88px, 15%, 112px) minmax(0, 1fr);
+  }
+
+  .msi-page .msi-details-row {
+    grid-template-rows: minmax(0, 1.4fr) minmax(0, .6fr);
+  }
+
+  .msi-page .msi-card {
+    padding: 10px;
+  }
+
+  .msi-page .msi-number {
+    font-size: clamp(28px, 3.4vw, 40px);
+  }
+}
+
+@media (max-width: 900px) {
+  .msi-page,
+  .msi-page-fullscreen {
+    height: auto;
+    min-height: 0;
+    flex: 1 1 0;
+    overflow-y: auto;
+  }
+
+  .msi-page .msi-monitor-layout {
+    display: flex;
+    height: auto;
+    overflow: visible;
+  }
+
+  .msi-page .msi-metrics-row > .msi-card {
+    height: clamp(104px, 17vh, 142px);
+  }
+
+  .msi-page .msi-details-row {
+    height: auto;
+    grid-template-rows: max-content max-content max-content;
+    overflow: visible;
+  }
+
+  .msi-page .msi-details-row > .msi-card,
+  .msi-page .msi-utility-row > .msi-card,
+  .msi-page .msi-utility-stack > .msi-card {
+    overflow: visible;
+  }
+
+  .msi-page .msi-utility-row,
+  .msi-page .msi-utility-stack {
+    height: auto;
+    overflow: visible;
+  }
+
+  .msi-page .snapshot-list {
+    max-height: 260px;
+  }
+}
+
+.msi-page-fullscreen .msi-metrics-row,
+.msi-page-fullscreen .msi-details-row {
+  flex: 0 0 auto;
+}
+
+.msi-page-fullscreen .msi-details-row {
+  min-height: auto;
+  grid-template-rows: max-content max-content;
+}
+
+.msi-page-fullscreen .msi-utility-row,
+.msi-page-fullscreen .msi-utility-stack {
+  overflow: visible;
+}
+
+/* Game Mode: the page itself never scrolls in fullscreen. Each column owns a
+   fixed share of the viewport and only a dense widget body can scroll when a
+   short display cannot physically contain all of its controls. */
+.game-page-main-fullscreen {
+  --game-fs-gap: var(--fs-gap, clamp(8px, 1vw, 20px));
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: clamp(12px, 1.25vw, 28px);
+  padding-top: var(--fs-header-space);
+  padding-bottom: 16px;
+}
+
+.game-page-fullscreen .dashboard-columns {
+  --dashboard-gap: var(--game-fs-gap);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.game-page-fullscreen .dashboard-column {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.game-page-fullscreen .dashboard-column > .glass-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.game-page-fullscreen .dashboard-column:nth-child(1) > .glass-panel,
+.game-page-fullscreen .dashboard-column:nth-child(3) > .glass-panel,
+.game-page-fullscreen .dashboard-column:nth-child(2) > :first-child {
+  flex: 1 1 0;
+}
+
+.game-page-fullscreen .dashboard-column:nth-child(2) > :last-child {
+  flex: 0 0 clamp(176px, 24vh, 260px);
+}
+
+.game-page-fullscreen .dashboard-column > .glass-panel > .widget-content {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+
+.game-page-fullscreen .dashboard-column:nth-child(2) > :last-child .widget-content > div {
+  max-height: none;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* MSI Center: reserve a shared header and dock clearance, then distribute the
+   remaining height between the metric row and two detail rows. This prevents
+   page-level scrolling and preserves the aligned card grid. */
+.msi-page-fullscreen {
+  --msi-fs-gap: var(--fs-gap, clamp(8px, 1vw, 20px));
+  height: calc(100% - var(--dock-height, 68px) - 16px);
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: clamp(12px, 1.25vw, 28px);
+  padding-top: var(--fs-header-space);
+  padding-bottom: 16px;
+}
+
+.msi-page-fullscreen .msi-monitor-layout {
+  height: 100%;
+  overflow: hidden;
+  gap: var(--msi-fs-gap);
+}
+
+.msi-page-fullscreen .msi-metrics-row {
+  flex: 0 0 clamp(104px, 15vh, 156px);
+  gap: var(--msi-fs-gap);
+}
+
+.msi-page-fullscreen .msi-metrics-row > .msi-card {
+  height: 100%;
+  max-height: none;
+}
+
+.msi-page-fullscreen .msi-details-row {
+  flex: 1 1 0;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1.1fr) minmax(0, .9fr);
+  gap: var(--msi-fs-gap);
+  overflow: hidden;
+}
+
+.msi-page-fullscreen .msi-details-row > .msi-card,
+.msi-page-fullscreen .msi-utility-row,
+.msi-page-fullscreen .msi-utility-row > .msi-card,
+.msi-page-fullscreen .msi-utility-stack {
+  min-height: 0;
+}
+
+.msi-page-fullscreen .msi-details-row > .msi-card,
+.msi-page-fullscreen .msi-utility-row > .msi-card,
+.msi-page-fullscreen .msi-utility-stack > .msi-card {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.msi-page-fullscreen .msi-utility-row > .msi-battery-master {
+  height: 100%;
+  align-self: stretch;
+}
+
+.msi-page-fullscreen .msi-utility-row,
+.msi-page-fullscreen .msi-utility-stack {
+  gap: var(--msi-fs-gap);
+}
+
+@media (max-height: 900px) and (min-width: 901px) {
+  .game-page-main-fullscreen,
+  .msi-page-fullscreen { padding-bottom: 16px; }
+  .game-page-fullscreen .dashboard-column:nth-child(2) > :last-child { flex-basis: clamp(150px, 22vh, 190px); }
+  .msi-page-fullscreen .msi-metrics-row { flex-basis: clamp(92px, 14vh, 120px); }
+  .msi-page-fullscreen .msi-card { padding: 12px; }
+}
+
+/* Keep these last: the fullscreen sizing rules above are intentionally
+   superseded by the shared page scroller when the dock occupies layout space. */
+.game-page-main-fullscreen {
+  overflow-y: auto;
+}
+
+.game-page-fullscreen .dashboard-columns,
+.game-page-fullscreen .dashboard-column,
+.game-page-fullscreen .dashboard-column > .glass-panel {
+  height: auto;
+  min-height: auto;
+  overflow: visible;
+}
+
+.game-page-fullscreen .dashboard-column > .glass-panel > .widget-content {
+  overflow: visible;
+}
+
+.msi-page-fullscreen {
+  height: auto;
+  overflow-y: auto;
+}
+
+.msi-page-fullscreen .msi-monitor-layout,
+.msi-page-fullscreen .msi-details-row {
+  height: auto;
+  overflow: visible;
+}
+
+/* The old fullscreen grid used flex-basis: 0, which collapses this section
+   once the page itself becomes the scroll container. */
+.msi-page-fullscreen .msi-metrics-row,
+.msi-page-fullscreen .msi-details-row {
+  flex: 0 0 auto;
+}
+
+.msi-page-fullscreen .msi-details-row {
+  min-height: auto;
+  grid-template-rows: max-content max-content;
+}
+
+.msi-page-fullscreen .msi-utility-row,
+.msi-page-fullscreen .msi-utility-stack {
+  overflow: visible;
+}
+
+/* Final MSI viewport contract. Keep after the legacy fullscreen rules. */
+@media (min-width: 901px) {
+  .msi-page,
+  .msi-page-fullscreen {
+    display: block;
+    height: auto;
+    min-height: 0;
+    flex: 1 1 0;
+    overflow: hidden;
+  }
+
+  .msi-page .msi-monitor-layout {
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: clamp(104px, 17%, 156px) minmax(0, 1fr);
+    gap: clamp(8px, 1.1vh, 14px);
+    overflow: hidden;
+  }
+
+  .msi-page .msi-metrics-row {
+    height: 100%;
+    min-height: 0;
+    flex: none;
+    align-items: stretch;
+    gap: clamp(8px, 1.1vh, 14px);
+  }
+
+  .msi-page .msi-metrics-row > .msi-card {
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .msi-page .msi-details-row {
+    height: 100%;
+    min-height: 0;
+    flex: none;
+    grid-template-rows: minmax(0, 1.25fr) minmax(0, .85fr);
+    gap: clamp(8px, 1.1vh, 14px);
+    overflow: hidden;
+  }
+
+  .msi-page .msi-details-row > .msi-card,
+  .msi-page .msi-utility-row > .msi-card,
+  .msi-page .msi-utility-stack > .msi-card {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .msi-page .msi-utility-row {
+    height: 100%;
+    min-height: 0;
+    gap: clamp(8px, 1.1vh, 14px);
+    overflow: hidden;
+  }
+
+  .msi-page .msi-utility-row > .msi-battery-master {
+    height: 100%;
+    min-height: 0;
+    align-self: stretch;
+  }
+
+  .msi-page .msi-utility-stack {
+    height: 100%;
+    min-height: 0;
+    gap: clamp(8px, 1.1vh, 14px);
+    overflow: hidden;
+  }
+
+  .msi-page .msi-operating-card {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+}
+
+@media (min-width: 901px) and (max-height: 780px) {
+  .msi-page .msi-monitor-layout {
+    grid-template-rows: clamp(88px, 15%, 112px) minmax(0, 1fr);
+  }
+
+  .msi-page .msi-details-row {
+    grid-template-rows: minmax(0, 1.4fr) minmax(0, .6fr);
+  }
+
+  .msi-page .msi-card { padding: 10px; }
+  .msi-page .msi-number { font-size: clamp(28px, 3.4vw, 40px); }
+}
+
+@media (max-width: 900px) {
+  .msi-page,
+  .msi-page-fullscreen {
+    height: auto;
+    min-height: 0;
+    flex: 1 1 0;
+    overflow-y: auto;
+  }
+
+  .msi-page .msi-monitor-layout {
+    display: flex;
+    height: auto;
+    overflow: visible;
+  }
+
+  .msi-page .msi-metrics-row > .msi-card {
+    height: clamp(104px, 17vh, 142px);
+  }
+
+  .msi-page .msi-details-row {
+    height: auto;
+    grid-template-rows: max-content max-content max-content;
+    overflow: visible;
+  }
+
+  .msi-page .msi-details-row > .msi-card,
+  .msi-page .msi-utility-row > .msi-card,
+  .msi-page .msi-utility-stack > .msi-card,
+  .msi-page .msi-utility-row,
+  .msi-page .msi-utility-stack {
+    height: auto;
+    overflow: visible;
+  }
+
+  .msi-page .snapshot-list { max-height: 260px; }
+}
+
+/* Display uses the same no-inner-scroll contract as MSI Hardware Control.
+   The map absorbs the flexible height while metadata and actions stay compact. */
+@media (min-width: 601px) {
+  .display-layout-widget {
+    flex: 0 0 clamp(230px, 32vh, 340px) !important;
+    min-height: 230px !important;
+    max-height: none;
+    overflow: hidden;
+  }
+
+  .display-layout-widget > .widget-content {
+    min-height: 0;
+    overflow: hidden !important;
+    padding-right: 0 !important;
+  }
+
+  .display-layout-content {
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: auto minmax(58px, 1fr) auto auto auto;
+    gap: clamp(4px, .7vh, 8px);
+    overflow: hidden;
+  }
+
+  .display-layout-map {
+    height: 100%;
+    min-height: 0 !important;
+  }
+
+  .display-layout-list {
+    display: grid;
+    min-height: 0;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: clamp(3px, .45vh, 5px);
+  }
+
+  .display-layout-row {
+    min-height: clamp(22px, 2.7vh, 27px);
+    padding-block: clamp(2px, .35vh, 4px);
+  }
+
+  .display-layout-settings {
+    height: clamp(28px, 3.5vh, 32px);
+  }
+}
+
+@media (min-width: 601px) and (max-height: 780px) {
+  .display-layout-widget {
+    flex-basis: clamp(210px, 31vh, 250px) !important;
+    min-height: 210px !important;
+  }
+
+  .display-layout-content {
+    grid-template-rows: auto minmax(48px, 1fr) auto auto auto;
+    gap: 4px;
+  }
+
+  .display-layout-summary .big-number { font-size: 17px; }
+  .display-layout-summary p { margin-top: 2px; }
+  .display-layout-meta { font-size: 8px; }
+  .display-layout-row { min-height: 20px; font-size: 8px; }
+  .display-layout-settings { height: 27px; }
+}
+
+/* ── Shared adaptive-card contract ────────────────────────────────────────
+   Cards never own a vertical scroller. They compact with the viewport, grow
+   to their real content height, and delegate unavoidable overflow to the
+   page/column that contains them. Popovers and modal pickers are unaffected. */
+.dashboard-main .adaptive-card:not(.display-layout-widget),
+.game-page-main .adaptive-card {
+  height: auto !important;
+  min-height: 0;
+  max-height: none !important;
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+}
+
+.dashboard-main .adaptive-card > .widget-content,
+.game-page-main .adaptive-card > .widget-content {
+  min-height: 0;
+  flex: 0 0 auto;
+  overflow: visible !important;
+  padding-right: 0 !important;
+}
+
+.dashboard-main .connected-device-list,
+.game-page-main .game-session-history,
+.dashboard-main .session-tools-widget .max-h-40 {
+  height: auto;
+  max-height: none !important;
+  overflow: visible !important;
+  padding-right: 0 !important;
+}
+
+.msi-page .msi-card {
+  overflow: hidden !important;
+}
+
+.msi-page .snapshot-list {
+  overflow: hidden !important;
+}
+
+@media (max-height: 780px) and (min-width: 601px) {
+  .dashboard-main,
+  .game-page-main {
+    --widget-padding: 8px;
+    --widget-gap: 6px;
+  }
+
+  .dashboard-main .adaptive-card,
+  .game-page-main .adaptive-card {
+    gap: 6px !important;
+  }
+
+  .dashboard-main .adaptive-card h3,
+  .game-page-main .adaptive-card h3 {
+    font-size: 9px;
+  }
+}
+
+/* Windowed dashboard: column 1 owns the brand row. Matching structural
+   spacers in columns 2 and 3 keep all first cards on the same baseline. */
+@media (min-width: 901px) {
+  .dashboard-main:not(.dashboard-fullscreen) {
+    --dashboard-brand-row-height: clamp(48px, 5.6vh, 62px);
+  }
+
+  .dashboard-main:not(.dashboard-fullscreen) .app-brand {
+    box-sizing: border-box;
+    height: var(--dashboard-brand-row-height);
+    min-height: var(--dashboard-brand-row-height);
+  }
+
+  .dashboard-main:not(.dashboard-fullscreen) .dashboard-left-area > .dashboard-column:nth-child(2)::before,
+  .dashboard-main:not(.dashboard-fullscreen) .dashboard-right-column::before {
+    display: block;
+    height: var(--dashboard-brand-row-height);
+    flex: 0 0 var(--dashboard-brand-row-height);
+    content: "";
+    pointer-events: none;
+  }
+}
+
+/* Display is content-sized in both windowed and fullscreen modes. Only the
+   topology map is viewport-responsive; the card itself never reserves empty
+   vertical space. These rules intentionally follow the shared card contract. */
+@media (min-width: 601px) {
+  .dashboard-main .display-layout-widget {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    flex: 0 0 auto !important;
+  }
+
+  .dashboard-main .display-layout-widget > .widget-content {
+    min-height: 0;
+    flex: 0 0 auto;
+    overflow: hidden !important;
+    padding-right: 0 !important;
+  }
+
+  .dashboard-main .display-layout-content {
+    display: grid;
+    height: auto;
+    grid-template-rows: auto clamp(62px, 9vh, 108px) auto auto auto;
+    gap: clamp(4px, .65vh, 7px);
+    overflow: hidden;
+  }
+
+  .dashboard-main .display-layout-map {
+    height: 100%;
+    min-height: 0 !important;
+  }
+}
+
+@media (min-width: 601px) and (max-height: 780px) {
+  .dashboard-main .display-layout-content {
+    grid-template-rows: auto clamp(48px, 8vh, 64px) auto auto auto;
+    gap: 4px;
+  }
+}
+
+/* Dashboard composition and media design are identical before/after F11.
+   Fullscreen only changes the available viewport and shared app chrome. */
+.dashboard-fullscreen .media-player-widget {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  flex: 0 0 auto !important;
+}
+
+.dashboard-fullscreen .media-track-layout {
+  min-height: auto;
+  flex: 0 0 auto;
+  flex-direction: row;
+  gap: clamp(10px, 1.2vw, 16px);
+}
+
+.dashboard-fullscreen .media-artwork {
+  width: clamp(48px, 6vh, 64px);
+  height: clamp(48px, 6vh, 64px);
+  min-height: 0;
+  align-self: auto;
+  aspect-ratio: auto;
+}
+
+.dashboard-fullscreen .media-track-details {
+  min-width: 0;
+  flex: 1 1 0;
+  gap: 0;
+}
+
+.dashboard-fullscreen .media-track-title,
+.dashboard-fullscreen .media-track-artist {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: unset;
+}
+
+.dashboard-fullscreen .media-track-title {
+  font-size: clamp(12px, .9vw, 13px);
+}
+
+.dashboard-fullscreen .media-track-artist {
+  font-size: 10px;
 }

@@ -1038,15 +1038,28 @@ pub fn get_battery() -> BatteryInfo {
     };
     let charge_limit_percent = read_battery_value(&bat_path, "charge_control_end_threshold")
         .and_then(|value| u8::try_from(value).ok());
-    let full_capacity = read_battery_value(&bat_path, "energy_full")
-        .or_else(|| read_battery_value(&bat_path, "charge_full"));
-    let design_capacity = read_battery_value(&bat_path, "energy_full_design")
-        .or_else(|| read_battery_value(&bat_path, "charge_full_design"));
-    let health_percent = match (full_capacity, design_capacity) {
-        (Some(full), Some(design)) if design > 0 => {
-            u8::try_from(full.saturating_mul(100).saturating_div(design).min(100)).ok()
-        }
-        _ => None,
+    let health_percent = {
+        let energy_health = match (
+            read_battery_value(&bat_path, "energy_full"),
+            read_battery_value(&bat_path, "energy_full_design"),
+        ) {
+            (Some(full), Some(design)) if design > 0 => {
+                u8::try_from(full.saturating_mul(100).saturating_div(design).min(100)).ok()
+            }
+            _ => None,
+        };
+
+        energy_health.or_else(|| {
+            match (
+                read_battery_value(&bat_path, "charge_full"),
+                read_battery_value(&bat_path, "charge_full_design"),
+            ) {
+                (Some(full), Some(design)) if design > 0 => {
+                    u8::try_from(full.saturating_mul(100).saturating_div(design).min(100)).ok()
+                }
+                _ => None,
+            }
+        })
     };
     BatteryInfo {
         percent,

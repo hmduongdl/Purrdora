@@ -14,7 +14,7 @@ export function RunningGameWidget() {
     : "—";
 
   return (
-    <WidgetFactory title="TRÒ CHƠI ĐANG CHẠY">
+    <WidgetFactory title="RUNNING GAME">
       {game ? (
         <div className="flex gap-4">
           {/* Game icon placeholder */}
@@ -44,7 +44,7 @@ export function RunningGameWidget() {
         <div className="flex items-center gap-3 rounded border border-white/5 bg-black/20 p-3">
           <Flame size={20} className="shrink-0 text-pink-accent/30" />
           <div>
-            <p className="text-xs font-bold text-on-surface-variant">Không phát hiện game</p>
+            <p className="text-xs font-bold text-on-surface-variant">Không phát hiện trò chơi</p>
             <p className="text-[9px] text-slate-500">
               GPU: {gpu ? `${(gpu.usage_percent ?? 0).toFixed(0)}%` : "—"} ·
               VRAM: {vram}

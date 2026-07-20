@@ -105,6 +105,16 @@ pub async fn set_power_profile(
 /// Cooler Boost remains an explicit user choice; a profile change only selects its
 /// corresponding fan preset.
 fn apply_power_profile_hardware(profile: PowerProfile) -> Result<(), String> {
+    // Auto is not effective while Cooler Boost overrides the fan controller.
+    // Selecting Balanced must therefore release Cooler Boost first.
+    if matches!(profile, PowerProfile::Balanced) {
+        crate::msi_ec::set_msi_ec_cooler_boost(false).map_err(|error| {
+            format!(
+                "power profile was changed, but Cooler Boost could not be disabled for balanced mode: {error}"
+            )
+        })?;
+    }
+
     let fan_mode = match profile {
         PowerProfile::PowerSaver => "silent",
         PowerProfile::Balanced => "auto",
@@ -493,11 +503,20 @@ pub fn set_shutdown_timer(minutes: Option<u32>) -> Result<ShutdownTimerResult, S
 
 #[tauri::command]
 pub fn system_power_action(action: String) -> Result<(), String> {
-    if !matches!(action.as_str(), "poweroff" | "reboot") {
-        return Err(format!("unsupported power action: {action}"));
-    }
-    let output = Command::new("systemctl")
-        .args([action.as_str(), "--no-wall"])
+    let mut command = match action.as_str() {
+        "poweroff" | "reboot" | "suspend" => {
+            let mut command = Command::new("systemctl");
+            command.args([action.as_str(), "--no-wall"]);
+            command
+        }
+        "lock" => {
+            let mut command = Command::new("loginctl");
+            command.arg("lock-session");
+            command
+        }
+        _ => return Err(format!("unsupported power action: {action}")),
+    };
+    let output = command
         .output()
         .map_err(|error| format!("could not {action} system: {error}"))?;
     if output.status.success() {

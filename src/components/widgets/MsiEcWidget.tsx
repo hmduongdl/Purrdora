@@ -8,9 +8,10 @@ import {
   Webcam, 
   Keyboard, 
   Shuffle, 
-  AlertTriangle 
+  AlertTriangle
 } from "lucide-react";
 import { useSystemStore } from "../../store/useSystemStore";
+import { InfoTooltip } from "../ui/InfoTooltip";
 import { WidgetFactory } from "./factory";
 
 export const MsiEcWidget = memo(function MsiEcWidget() {
@@ -30,9 +31,9 @@ export const MsiEcWidget = memo(function MsiEcWidget() {
       <WidgetFactory title="MSI HARDWARE CONTROL" accentColor="text-slate-500">
         <div className="flex flex-col items-center justify-center gap-2 rounded border border-white/5 bg-black/20 p-4 text-center text-[11px] text-slate-500">
           <AlertTriangle size={20} className="text-slate-600" />
-          <p className="font-semibold">Driver msi-ec không hoạt động</p>
+          <p className="font-semibold">Trình điều khiển msi-ec không hoạt động</p>
           <p className="text-[9px] text-slate-600 leading-normal">
-            Ứng dụng không tìm thấy đường dẫn <code className="bg-black/40 px-1 rounded">/sys/devices/platform/msi-ec</code>. Vui lòng kiểm tra lại cấu hình driver trên hệ thống.
+            Không phát hiện <code className="bg-black/40 px-1 rounded">/sys/devices/platform/msi-ec</code>. Vui lòng kiểm tra cấu hình trình điều khiển trên hệ thống.
           </p>
         </div>
       </WidgetFactory>
@@ -125,6 +126,9 @@ export const MsiEcWidget = memo(function MsiEcWidget() {
             <div className="mb-1.5 flex items-center gap-1.5">
               <Gauge size={12} className="text-slate-400" />
               <span className="text-[9px] uppercase tracking-wider text-slate-400">Shift Mode (Hiệu năng)</span>
+              <InfoTooltip id="shift-mode-help-widget" label="Giải thích Shift Mode">
+                Shift Mode điều chỉnh ưu tiên hiệu năng, giới hạn điện và nhiệt của CPU/GPU; không điều khiển tốc độ quạt trực tiếp. Eco tiết kiệm điện, Comfort cân bằng, Turbo ưu tiên hiệu năng. Muốn quạt chạy tối đa, hãy bật Cooler Boost.
+              </InfoTooltip>
             </div>
             <div className="flex gap-1.5">
               {available_shift_modes.map((mode) => {
@@ -162,40 +166,49 @@ export const MsiEcWidget = memo(function MsiEcWidget() {
           </div>
 
           {/* Fan Control & Cooler Boost */}
-          <div className="grid grid-cols-3 gap-1.5">
-            <button
-              onClick={() => void setCoolerBoost(!cooler_boost)}
-              className={`col-span-1 flex flex-col items-center justify-center gap-1 rounded border py-2 text-[10px] font-bold uppercase transition-all duration-300 ${
-                cooler_boost
-                  ? "border-red-500/50 bg-red-500/10 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
-                  : "border-white/10 bg-black/20 text-slate-400 hover:border-red-500/30"
-              }`}
-            >
-              <Flame size={14} className={cooler_boost ? "animate-pulse text-red-500" : ""} />
-              <span className="text-[8px] tracking-wider mt-0.5">Boost</span>
-            </button>
+          <div>
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <Wind size={12} className="text-slate-400" />
+              <span className="text-[9px] uppercase tracking-wider text-slate-400">Fan Profile</span>
+              <InfoTooltip id="fan-profile-help-widget" label="Giải thích Fan Profile">
+                Fan Profile chọn đường cong quạt của EC: Silent ưu tiên yên tĩnh, Auto do firmware cân bằng, Advanced dùng đường cong tùy chỉnh của MSI. Cooler Boost là chế độ riêng, ép quạt chạy tối đa và sẽ ồn hơn.
+              </InfoTooltip>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                onClick={() => void setCoolerBoost(!cooler_boost)}
+                className={`col-span-1 flex flex-col items-center justify-center gap-1 rounded border py-2 text-[10px] font-bold uppercase transition-all duration-300 ${
+                  cooler_boost
+                    ? "border-red-500/50 bg-red-500/10 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
+                    : "border-white/10 bg-black/20 text-slate-400 hover:border-red-500/30"
+                }`}
+              >
+                <Flame size={14} className={cooler_boost ? "animate-pulse text-red-500" : ""} />
+                <span className="text-[8px] tracking-wider mt-0.5">Boost</span>
+              </button>
 
-            <div className="col-span-2 grid grid-cols-3 gap-1">
-              {available_fan_modes.map((mode) => {
-                const isActive = fan_mode === mode && !cooler_boost;
-                return (
-                  <button
-                    key={mode}
-                    onClick={() => {
-                      void setCoolerBoost(false);
-                      void setFanMode(mode);
-                    }}
-                    className={`flex flex-col items-center justify-center rounded border py-2 text-[9px] font-bold capitalize transition-colors ${
-                      isActive
-                        ? "border-pink-accent/50 bg-pink-accent/10 text-pink-accent"
-                        : "border-white/10 bg-black/20 text-slate-500 hover:border-pink-accent/30"
-                    }`}
-                  >
-                    <Wind size={12} />
-                    <span className="mt-0.5">{mode}</span>
-                  </button>
-                );
-              })}
+              <div className="col-span-2 grid grid-cols-3 gap-1">
+                {available_fan_modes.map((mode) => {
+                  const isActive = fan_mode === mode && !cooler_boost;
+                  return (
+                    <button
+                      key={mode}
+                      onClick={() => {
+                        void setCoolerBoost(false);
+                        void setFanMode(mode);
+                      }}
+                      className={`flex flex-col items-center justify-center rounded border py-2 text-[9px] font-bold capitalize transition-colors ${
+                        isActive
+                          ? "border-pink-accent/50 bg-pink-accent/10 text-pink-accent"
+                          : "border-white/10 bg-black/20 text-slate-500 hover:border-pink-accent/30"
+                      }`}
+                    >
+                      <Wind size={12} />
+                      <span className="mt-0.5">{mode}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -209,7 +222,7 @@ export const MsiEcWidget = memo(function MsiEcWidget() {
                 <span className="text-[9px] uppercase tracking-wider">Đèn nền bàn phím</span>
               </div>
               <span className="font-mono text-[10px] text-pink-accent font-bold">
-                Lớp {kbd_backlight} / {kbd_backlight_max}
+                Mức {kbd_backlight} / {kbd_backlight_max}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -275,7 +288,7 @@ export const MsiEcWidget = memo(function MsiEcWidget() {
               <Battery size={13} className={super_battery ? "text-emerald-400" : "text-slate-500"} />
               <div>
                 <p className="text-[10px] font-bold leading-none">Eco Battery</p>
-                <p className="text-[8px] text-slate-500 mt-0.5">{super_battery ? "Kích hoạt" : "Không bật"}</p>
+                <p className="text-[8px] text-slate-500 mt-0.5">{super_battery ? "Đang bật" : "Đang tắt"}</p>
               </div>
             </button>
           </div>
