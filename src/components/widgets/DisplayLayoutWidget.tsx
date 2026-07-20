@@ -3,7 +3,15 @@ import { invoke } from "@tauri-apps/api/core";
 import { Laptop, LoaderCircle, Monitor, Settings2 } from "lucide-react";
 import type { DisplayInfo, DisplayState } from "../../types/schema";
 import { dashboardFetchQueue } from "../../lib/dashboardFetchQueue";
+import {
+  getCachedResource,
+  getCachedResourceAge,
+  loadCachedResource,
+} from "../../lib/resourceCache";
 import { WidgetFactory } from "./factory";
+
+const DISPLAY_CACHE_KEY = "display-layout";
+const DISPLAY_STALE_MS = 60_000;
 
 const modeLabel: Record<string, string> = {
   single: "Một màn hình",
@@ -40,19 +48,29 @@ function DisplayMap({ displays }: { displays: DisplayInfo[] }) {
 }
 
 export const DisplayLayoutWidget = memo(function DisplayLayoutWidget() {
-  const [state, setState] = useState<DisplayState | null>(null);
+  const [state, setState] = useState<DisplayState | null>(
+    () => getCachedResource<DisplayState>(DISPLAY_CACHE_KEY) ?? null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
   const refresh = useCallback(async () => {
     try {
-      setState(await invoke<DisplayState>("get_display_state"));
+      setState(await loadCachedResource(
+        DISPLAY_CACHE_KEY,
+        () => invoke<DisplayState>("get_display_state"),
+        1_000,
+      ));
       setError(null);
     } catch (reason) {
       setError(String(reason));
     }
   }, []);
 
-  useEffect(() => dashboardFetchQueue.register("display-layout", refresh, { initialDelayMs: 350 }), [refresh]);
+  useEffect(() => dashboardFetchQueue.register("display-layout", refresh, {
+    cadenceTicks: 6,
+    initialDelayMs: 350,
+    runInitially: getCachedResourceAge(DISPLAY_CACHE_KEY) > DISPLAY_STALE_MS,
+  }), [refresh]);
 
   const openSettings = async () => {
     setOpening(true);

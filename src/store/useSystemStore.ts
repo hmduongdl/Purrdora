@@ -45,6 +45,17 @@ let processFetchInFlight: Promise<void> | null = null;
 let batteryFetchInFlight: Promise<void> | null = null;
 let runningGameFetchInFlight: Promise<void> | null = null;
 let msiEcFetchInFlight: Promise<void> | null = null;
+let audioFetchInFlight: Promise<void> | null = null;
+let mediaFetchInFlight: Promise<void> | null = null;
+
+interface CacheUpdatedAt {
+  audio: number;
+  media: number;
+  processes: number;
+  battery: number;
+  runningGame: number;
+  msiEc: number;
+}
 
 function runSystemControl<T>(action: () => Promise<T>): Promise<T> {
   if (systemControlInFlight) {
@@ -77,16 +88,19 @@ export interface SystemStore {
   runningGame: RunningGameInfo | null;
   gameFps: GameFpsUpdate | null;
   operatingMode: OperatingMode;
+  cacheUpdatedAt: CacheUpdatedAt;
 
   setTelemetry: (data: SystemTelemetry) => void;
   setGameFps: (data: GameFpsUpdate) => void;
   setAudio: (data: AudioState) => void;
-  setMedia: (data: MediaInfo) => void;
+  setMedia: (data: MediaInfo | null) => void;
   setSettings: (data: Partial<AppSettings>) => void;
   setIsGamemodeActive: (active: boolean) => void;
   setProcesses: (data: ProcessInfo[]) => void;
   setBattery: (data: BatteryInfo) => void;
   setRunningGame: (data: RunningGameInfo | null) => void;
+  fetchAudio: (maxAgeMs?: number) => Promise<void>;
+  fetchMedia: (maxAgeMs?: number) => Promise<void>;
 
   toggleGamemode: () => Promise<string>;
   clearRamCache: () => Promise<string>;
@@ -139,6 +153,7 @@ export const useSystemStore = create<SystemStore>((set, get) => ({
   runningGame: null,
   gameFps: null,
   operatingMode: (localStorage.getItem("purrdora_operating_mode") as OperatingMode | null) ?? "work",
+  cacheUpdatedAt: { audio: 0, media: 0, processes: 0, battery: 0, runningGame: 0, msiEc: 0 },
   msiEcState: null,
 
   setTelemetry: (data) => {
@@ -188,11 +203,17 @@ export const useSystemStore = create<SystemStore>((set, get) => ({
 
 
   setAudio: (data) => {
-    set({ audio: data });
+    set((state) => ({
+      audio: data,
+      cacheUpdatedAt: { ...state.cacheUpdatedAt, audio: Date.now() },
+    }));
   },
 
   setMedia: (data) => {
-    set({ media: data });
+    set((state) => ({
+      media: data,
+      cacheUpdatedAt: { ...state.cacheUpdatedAt, media: Date.now() },
+    }));
   },
 
   setSettings: (data) => {
@@ -203,10 +224,36 @@ export const useSystemStore = create<SystemStore>((set, get) => ({
     set((state) => ({ controls: { ...state.controls, is_gamemode_active: active } }));
   },
 
-  setProcesses: (data) => { set({ processes: data }); },
-  setBattery: (data) => { set({ battery: data }); },
-  setRunningGame: (data) => { set({ runningGame: data }); },
+  setProcesses: (data) => { set((state) => ({ processes: data, cacheUpdatedAt: { ...state.cacheUpdatedAt, processes: Date.now() } })); },
+  setBattery: (data) => { set((state) => ({ battery: data, cacheUpdatedAt: { ...state.cacheUpdatedAt, battery: Date.now() } })); },
+  setRunningGame: (data) => { set((state) => ({ runningGame: data, cacheUpdatedAt: { ...state.cacheUpdatedAt, runningGame: Date.now() } })); },
   setGameFps: (data) => { set({ gameFps: data }); },
+
+  fetchAudio: async (maxAgeMs = 0) => {
+    const state = get();
+    if (state.cacheUpdatedAt.audio && Date.now() - state.cacheUpdatedAt.audio <= maxAgeMs) return;
+    if (audioFetchInFlight) return audioFetchInFlight;
+    const request = (async () => {
+      const data = await invoke<AudioState>("get_audio_state");
+      get().setAudio(data);
+    })();
+    audioFetchInFlight = request;
+    try { await request; }
+    finally { if (audioFetchInFlight === request) audioFetchInFlight = null; }
+  },
+
+  fetchMedia: async (maxAgeMs = 0) => {
+    const state = get();
+    if (state.cacheUpdatedAt.media && Date.now() - state.cacheUpdatedAt.media <= maxAgeMs) return;
+    if (mediaFetchInFlight) return mediaFetchInFlight;
+    const request = (async () => {
+      const data = await invoke<MediaInfo | null>("get_media_info");
+      get().setMedia(data);
+    })();
+    mediaFetchInFlight = request;
+    try { await request; }
+    finally { if (mediaFetchInFlight === request) mediaFetchInFlight = null; }
+  },
 
   fetchProcesses: async () => {
     if (processFetchInFlight) return processFetchInFlight;
@@ -214,7 +261,7 @@ export const useSystemStore = create<SystemStore>((set, get) => ({
     const request = (async () => {
       try {
         const data = await invoke<ProcessInfo[]>("get_top_processes");
-        set({ processes: data });
+        get().setProcesses(data);
       } catch (e) { console.error("[fetchProcesses]", e); }
       finally {
         const elapsed = performance.now() - started;
@@ -232,7 +279,7 @@ export const useSystemStore = create<SystemStore>((set, get) => ({
     const request = (async () => {
       try {
         const data = await invoke<BatteryInfo>("get_battery");
-        set({ battery: data });
+        get().setBattery(data);
       } catch (e) { console.error("[fetchBattery]", e); }
       finally {
         const elapsed = performance.now() - started;
@@ -259,7 +306,7 @@ export const useSystemStore = create<SystemStore>((set, get) => ({
     const request = (async () => {
       try {
         const data = await invoke<RunningGameInfo | null>("get_running_game");
-        set({ runningGame: data });
+        get().setRunningGame(data);
       } catch (e) { console.error("[fetchRunningGame]", e); }
     })();
     runningGameFetchInFlight = request;
@@ -514,7 +561,10 @@ export const useSystemStore = create<SystemStore>((set, get) => ({
     const request = (async () => {
       try {
         const data = await invoke<MsiEcState>("get_msi_ec_state");
-        set({ msiEcState: data });
+        set((state) => ({
+          msiEcState: data,
+          cacheUpdatedAt: { ...state.cacheUpdatedAt, msiEc: Date.now() },
+        }));
       } catch (e) {
         console.error("[fetchMsiEcState]", e);
       }

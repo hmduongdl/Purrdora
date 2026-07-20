@@ -1,6 +1,7 @@
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::{fmt, io};
 use tokio::{
     process::Command,
@@ -18,6 +19,8 @@ static STATUS_NODE_RE: Lazy<Regex> = Lazy::new(|| {
 });
 static STATUS_SECTION_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^\s*[│├└─ ]*(?P<section>[[:alpha:]][[:alpha:] ]*):\s*$").unwrap());
+static NODE_NICK_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"(?m)^\s*(?:\*\s+)?node\.nick\s*=\s*\"(?P<nick>.*)\"\s*$"#).unwrap());
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AudioSection {
@@ -204,14 +207,67 @@ fn parse_status_nodes(output: &str) -> Vec<StatusNode> {
     nodes
 }
 
-async fn device_from_node(node: StatusNode) -> AudioDevice {
+fn parse_node_nick(output: &str) -> Option<String> {
+    NODE_NICK_RE
+        .captures(output)
+        .map(|captures| captures["nick"].to_owned())
+        .filter(|nick| !nick.is_empty())
+}
+
+fn is_display_output(node: &StatusNode) -> bool {
+    node.section == AudioSection::Sinks && node.name.contains("__HDMI")
+}
+
+fn is_internal_speaker(node: &StatusNode) -> bool {
+    node.section == AudioSection::Sinks
+        && node.name.starts_with("alsa_output.pci-")
+        && node.name.contains("-platform-")
+        && node.name.contains("__Speaker__")
+}
+
+fn is_generic_display_nickname(nickname: &str) -> bool {
+    let nickname = nickname.trim();
+    (nickname.starts_with("HDMI ") || nickname.starts_with("DisplayPort "))
+        && nickname
+            .split_whitespace()
+            .last()
+            .is_some_and(|suffix| suffix.chars().all(|character| character.is_ascii_digit()))
+}
+
+fn should_hide_disconnected_display(node: &StatusNode, nicknames: &HashMap<u32, String>) -> bool {
+    is_display_output(node)
+        && nicknames
+            .get(&node.id)
+            .is_some_and(|nickname| is_generic_display_nickname(nickname))
+}
+
+fn device_label(
+    node: &StatusNode,
+    descriptions: &HashMap<u32, String>,
+    nicknames: &HashMap<u32, String>,
+) -> String {
+    if is_internal_speaker(node) {
+        return "Internal Speakers".to_owned();
+    }
+    if is_display_output(node) {
+        if let Some(nickname) = nicknames.get(&node.id) {
+            return format!("Display {nickname}");
+        }
+    }
+    descriptions
+        .get(&node.id)
+        .cloned()
+        .unwrap_or_else(|| node.name.clone())
+}
+
+async fn device_from_node(
+    node: StatusNode,
+    descriptions: &HashMap<u32, String>,
+    nicknames: &HashMap<u32, String>,
+) -> AudioDevice {
     let (volume_percent, is_muted) = match node.volume_percent {
         Some(volume) => (volume, node.is_muted),
         None if node.is_default => {
-            // Suspended/inactive endpoints may legitimately have no volume in
-            // `status`, and some wpctl versions return an empty stdout for the
-            // numeric node ID. Query the stable default alias, but keep the
-            // device visible if PipeWire still cannot report a value.
             let target = match node.section {
                 AudioSection::Sinks => "@DEFAULT_AUDIO_SINK@",
                 AudioSection::Sources => "@DEFAULT_AUDIO_SOURCE@",
@@ -230,15 +286,42 @@ async fn device_from_node(node: StatusNode) -> AudioDevice {
         }
         None => (0.0, node.is_muted),
     };
+    let description = device_label(&node, descriptions, nicknames);
     AudioDevice {
         id: node.id,
-        name: node.name.clone(),
-        description: node.name,
+        name: node.name,
+        description,
         is_default: node.is_default,
         volume_percent,
         is_muted,
         streams: Vec::new(),
     }
+}
+
+/// `wpctl status -n` prints `node.name`, while the regular status output
+/// prints the user-facing node label (normally `node.nick`).  Associate the
+/// latter with the stable PipeWire node id before building API devices.
+fn descriptions_by_id(nodes: Vec<StatusNode>) -> HashMap<u32, String> {
+    nodes
+        .into_iter()
+        .filter(|node| node.section != AudioSection::Streams)
+        .map(|node| (node.id, node.name))
+        .collect()
+}
+
+async fn nicknames_by_id(nodes: &[StatusNode]) -> HashMap<u32, String> {
+    futures_util::future::join_all(nodes.iter().map(|node| async move {
+        let id = node.id;
+        let nick = wpctl(&["inspect", &id.to_string()])
+            .await
+            .ok()
+            .and_then(|output| parse_node_nick(&output));
+        (id, nick)
+    }))
+    .await
+    .into_iter()
+    .filter_map(|(id, nick)| nick.map(|nick| (id, nick)))
+    .collect()
 }
 
 fn now_ms() -> u64 {
@@ -249,14 +332,36 @@ fn now_ms() -> u64 {
 
 #[tauri::command]
 pub async fn get_audio_state() -> Result<AudioState, AudioError> {
-    let status = wpctl(&["status", "-n"]).await?;
-    let nodes = parse_status_nodes(&status);
+    // Fetch node.names (raw) and node.descriptions (human-readable) in parallel.
+    let (names_result, descriptions_result) =
+        tokio::join!(wpctl(&["status", "-n"]), wpctl(&["status"]));
+    let names_output = names_result?;
+    let descriptions_output = descriptions_result?;
+
+    let nodes = parse_status_nodes(&names_output);
+    let descriptions = descriptions_by_id(parse_status_nodes(&descriptions_output));
+
     let device_nodes: Vec<_> = nodes
         .into_iter()
         .filter(|node| node.section != AudioSection::Streams)
         .collect();
-    let devices =
-        futures_util::future::join_all(device_nodes.iter().cloned().map(device_from_node)).await;
+    let display_nodes: Vec<_> = device_nodes
+        .iter()
+        .filter(|node| is_display_output(node))
+        .cloned()
+        .collect();
+    let nicknames = nicknames_by_id(&display_nodes).await;
+    let device_nodes: Vec<_> = device_nodes
+        .into_iter()
+        .filter(|node| !should_hide_disconnected_display(node, &nicknames))
+        .collect();
+    let devices = futures_util::future::join_all(
+        device_nodes
+            .iter()
+            .cloned()
+            .map(|node| device_from_node(node, &descriptions, &nicknames)),
+    )
+    .await;
     let mut outputs: Vec<_> = devices
         .iter()
         .filter(|device| {
@@ -274,8 +379,6 @@ pub async fn get_audio_state() -> Result<AudioState, AudioError> {
                 .any(|node| node.id == device.id && node.section == AudioSection::Sources)
         })
         .collect();
-    // WirePlumber marks the active route with `*`. Keep a deterministic fallback
-    // for older wpctl versions that omit the marker.
     let default_sink = outputs
         .iter()
         .find(|device| device.is_default)
@@ -353,7 +456,11 @@ pub async fn set_default_audio_output(id: u32) -> Result<AudioState, AudioError>
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_status_nodes, parse_volume, AudioSection, StatusNode};
+    use super::{
+        descriptions_by_id, device_label, parse_node_nick, parse_status_nodes, parse_volume,
+        should_hide_disconnected_display, AudioSection, StatusNode,
+    };
+    use std::collections::HashMap;
 
     #[test]
     fn parses_wpctl_volume_and_mute() {
@@ -370,5 +477,101 @@ mod tests {
                 StatusNode { id: 54, name: "Internal Microphone".to_owned(), is_default: false, volume_percent: None, is_muted: false, section: AudioSection::Sources },
             ]
         );
+    }
+
+    #[test]
+    fn joins_raw_node_names_with_display_descriptions_by_id() {
+        let raw_nodes = parse_status_nodes(
+            "Audio\n ├─ Sinks:\n │  * 53. alsa_output.pci-0000_00_1f.3-platform-sof_sdw.HiFi__Speaker__sink [vol: 0.42]\n │    54. alsa_output.pci-0000_00_1f.3-platform-sof_sdw.HiFi__HDMI1__sink\n",
+        );
+        let descriptions = descriptions_by_id(parse_status_nodes(
+            "Audio\n ├─ Sinks:\n │  * 53. Alder Lake PCH-P High Definition Audio Controller Speaker [vol: 0.42]\n │    54. Alder Lake PCH-P High Definition Audio Controller HDMI / DisplayPort 1 Output\n",
+        ));
+
+        assert_eq!(
+            raw_nodes[0].name,
+            "alsa_output.pci-0000_00_1f.3-platform-sof_sdw.HiFi__Speaker__sink"
+        );
+        assert_eq!(
+            descriptions.get(&raw_nodes[0].id),
+            Some(&"Alder Lake PCH-P High Definition Audio Controller Speaker".to_owned())
+        );
+        assert_eq!(
+            descriptions.get(&raw_nodes[1].id),
+            Some(
+                &"Alder Lake PCH-P High Definition Audio Controller HDMI / DisplayPort 1 Output"
+                    .to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn uses_node_nick_for_display_output_label() {
+        let node = parse_status_nodes(
+            "Audio\n ├─ Sinks:\n │    63. alsa_output.pci-0000_00_1f.3.HiFi__HDMI1__sink\n",
+        )
+        .pop()
+        .unwrap();
+        let nick = parse_node_nick("  * node.nick = \"MP59G\"\n").unwrap();
+
+        assert_eq!(nick, "MP59G");
+        assert_eq!(
+            device_label(
+                &node,
+                &HashMap::from([(63, "HDMI / DisplayPort 1 Output".to_owned())]),
+                &HashMap::from([(63, nick)]),
+            ),
+            "Display MP59G"
+        );
+    }
+
+    #[test]
+    fn names_the_internal_speaker_clearly() {
+        let node = parse_status_nodes(
+            "Audio\n ├─ Sinks:\n │    53. alsa_output.pci-0000_00_1f.3-platform-sof.HiFi__Speaker__sink\n",
+        )
+        .pop()
+        .unwrap();
+
+        assert_eq!(
+            device_label(&node, &HashMap::new(), &HashMap::new()),
+            "Internal Speakers"
+        );
+    }
+
+    #[test]
+    fn preserves_the_name_of_an_external_speaker() {
+        let node = parse_status_nodes(
+            "Audio\n ├─ Sinks:\n │    91. alsa_output.usb-Creative_Speaker.HiFi__Speaker__sink\n",
+        )
+        .pop()
+        .unwrap();
+
+        assert_eq!(
+            device_label(
+                &node,
+                &HashMap::from([(91, "Creative Pebble".to_owned())]),
+                &HashMap::new(),
+            ),
+            "Creative Pebble"
+        );
+    }
+
+    #[test]
+    fn hides_display_outputs_without_a_monitor_nickname() {
+        let node = parse_status_nodes(
+            "Audio\n ├─ Sinks:\n │    51. alsa_output.pci-0000_00_1f.3.HiFi__HDMI2__sink\n",
+        )
+        .pop()
+        .unwrap();
+
+        assert!(should_hide_disconnected_display(
+            &node,
+            &HashMap::from([(51, "HDMI 2".to_owned())]),
+        ));
+        assert!(!should_hide_disconnected_display(
+            &node,
+            &HashMap::from([(51, "MP59G".to_owned())]),
+        ));
     }
 }

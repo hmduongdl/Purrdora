@@ -235,7 +235,7 @@ body {
 }
 
 .dashboard-fullscreen .dashboard-column {
-  overflow-y: auto;
+  overflow-y: hidden;
 }
 
 .dashboard-fullscreen .media-player-widget {
@@ -298,7 +298,7 @@ body {
 }
 
 .dashboard-fullscreen .dashboard-right-column {
-  overflow-y: auto;
+  overflow-y: hidden;
   padding-bottom: 2px;
 }
 
@@ -433,7 +433,7 @@ body {
   .dashboard-main:not(.dashboard-fullscreen) .dashboard-column {
     height: 100%;
     min-height: 0;
-    overflow-y: auto;
+    overflow-y: hidden;
     overflow-x: hidden;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
@@ -614,7 +614,7 @@ body {
 .dashboard-fullscreen .dashboard-column {
   height: 100%;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;

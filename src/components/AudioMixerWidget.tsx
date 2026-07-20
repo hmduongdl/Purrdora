@@ -3,6 +3,7 @@ import { Check, ChevronDown, Headphones, LoaderCircle, Volume1, Volume2, VolumeX
 import { useSystemStore } from "../store/useSystemStore";
 import { useDebounce } from "../hooks/useDebounce";
 import { StatusPill } from "./widgets/factory";
+import { formatAudioDeviceName } from "../lib/audioUtils";
 
 export const AudioMixerWidget = memo(function AudioMixerWidget() {
   const audio = useSystemStore((state) => state.audio);
@@ -97,8 +98,11 @@ export const AudioMixerWidget = memo(function AudioMixerWidget() {
               <div className="ml-2.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-cyan-accent/10 text-cyan-accent">
                 <Headphones size={13} />
               </div>
-              <span className="min-w-0 flex-1 truncate px-2.5 pr-8 text-[10px] font-semibold text-slate-200">
-                {sink.description || sink.name}
+              <span
+                className="min-w-0 flex-1 truncate px-2.5 pr-8 text-[10px] font-semibold text-slate-200"
+                title={sink.name}
+              >
+                {formatAudioDeviceName(sink.description)}
               </span>
               {isSelecting ? (
                 <span className="absolute right-3 h-3 w-3 animate-spin rounded-full border border-cyan-accent/30 border-t-cyan-accent" />
@@ -124,7 +128,12 @@ export const AudioMixerWidget = memo(function AudioMixerWidget() {
                         <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${active ? "bg-cyan-accent/15" : "bg-white/[0.04] text-slate-500"}`}>
                           <Headphones size={12} />
                         </span>
-                        <span className="min-w-0 flex-1 truncate text-[10px] font-medium">{device.description || device.name}</span>
+                        <span
+                          className="min-w-0 flex-1 truncate text-[10px] font-medium"
+                          title={device.name}
+                        >
+                          {formatAudioDeviceName(device.description)}
+                        </span>
                         {active && <Check size={12} className="shrink-0" />}
                       </button>
                     );

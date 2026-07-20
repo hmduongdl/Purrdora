@@ -3,35 +3,64 @@ import { invoke } from "@tauri-apps/api/core";
 import { Bluetooth, Check, LoaderCircle, Plus, Radio, RefreshCw, Usb, X } from "lucide-react";
 import { StatusPill } from "./widgets/factory";
 import { dashboardFetchQueue } from "../lib/dashboardFetchQueue";
+import {
+  getCachedResource,
+  getCachedResourceAge,
+  loadCachedResource,
+  setCachedResource,
+} from "../lib/resourceCache";
 
 interface Device { address: string; name: string; connected: boolean; paired: boolean; trusted: boolean }
 interface UsbDevice { id: string; name: string; manufacturer: string | null; vendor_id: string; product_id: string; kind: string }
 interface BluetoothState { powered: boolean; discovering: boolean; devices: Device[]; usb_devices: UsbDevice[] }
 
+const CONNECTED_DEVICES_CACHE_KEY = "connected-devices";
+const CONNECTED_DEVICES_STALE_MS = 30_000;
+
 export const ConnectedDevicesWidget = memo(function ConnectedDevicesWidget() {
-  const [state, setState] = useState<BluetoothState | null>(null);
+  const [state, setState] = useState<BluetoothState | null>(
+    () => getCachedResource<BluetoothState>(CONNECTED_DEVICES_CACHE_KEY) ?? null,
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const refresh = useCallback(async () => {
-    try { setState(await invoke("get_bluetooth_state")); setError(null); }
+    try {
+      const nextState = await loadCachedResource(
+        CONNECTED_DEVICES_CACHE_KEY,
+        () => invoke<BluetoothState>("get_bluetooth_state"),
+        1_000,
+      );
+      setState(nextState);
+      setError(null);
+    }
     catch (reason) { setError(String(reason)); }
   }, []);
   useEffect(() => {
     // USB/Bluetooth enumeration is optional for the first paint and can be
     // noticeably slow on systems with many devices.
-    return dashboardFetchQueue.register("connected-devices", refresh, { initialDelayMs: 1_000 });
+    return dashboardFetchQueue.register("connected-devices", refresh, {
+      cadenceTicks: 3,
+      initialDelayMs: 1_000,
+      runInitially: getCachedResourceAge(CONNECTED_DEVICES_CACHE_KEY) > CONNECTED_DEVICES_STALE_MS,
+    });
   }, [refresh]);
 
   const scan = async () => {
     setBusy("scan"); setError(null);
-    try { setState(await invoke("scan_bluetooth_devices")); }
+    try {
+      const nextState = await invoke<BluetoothState>("scan_bluetooth_devices");
+      setState(setCachedResource(CONNECTED_DEVICES_CACHE_KEY, nextState));
+    }
     catch (reason) { setError(String(reason)); }
     finally { setBusy(null); }
   };
   const connect = async (device: Device) => {
     setBusy(device.address); setError(null);
-    try { setState(await invoke("connect_bluetooth_device", { address: device.address })); }
+    try {
+      const nextState = await invoke<BluetoothState>("connect_bluetooth_device", { address: device.address });
+      setState(setCachedResource(CONNECTED_DEVICES_CACHE_KEY, nextState));
+    }
     catch (reason) { setError(String(reason)); }
     finally { setBusy(null); }
   };

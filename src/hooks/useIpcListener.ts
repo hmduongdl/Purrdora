@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
 import { useSystemStore } from "../store/useSystemStore";
 import { dashboardFetchQueue } from "../lib/dashboardFetchQueue";
 import type { SystemTelemetry, AudioState, MediaInfo, GameFpsUpdate } from "../types/schema";
@@ -30,6 +29,16 @@ function decodeIpcPayload<T>(payload: T | ByteStreamPayload): T {
 
 export type ActivePage = "dashboard" | "game" | "msi";
 
+const AUDIO_CACHE_TTL_MS = 10_000;
+const MEDIA_CACHE_TTL_MS = 120_000;
+const PROCESS_CACHE_TTL_MS = 10_000;
+const BATTERY_CACHE_TTL_MS = 30_000;
+const MSI_EC_CACHE_TTL_MS = 10_000;
+
+function isFresh(updatedAt: number, maxAgeMs: number) {
+  return updatedAt > 0 && Date.now() - updatedAt <= maxAgeMs;
+}
+
 function gameQueueDelayMs() {
   const ramPercent = useSystemStore.getState().telemetry?.ram.usage_percent ?? 0;
   // Scale linearly from +3s at 0% RAM to +5s at 100% RAM.
@@ -44,6 +53,8 @@ export function useIpcListener(activePage: ActivePage) {
   const fetchBattery   = useSystemStore((s) => s.fetchBattery);
   const fetchRunningGame = useSystemStore((s) => s.fetchRunningGame);
   const fetchMsiEcState = useSystemStore((s) => s.fetchMsiEcState);
+  const fetchAudio = useSystemStore((s) => s.fetchAudio);
+  const fetchMedia = useSystemStore((s) => s.fetchMedia);
   const isGameRunning = useSystemStore((s) => s.runningGame !== null);
   const setGameFps = useSystemStore((s) => s.setGameFps);
   const activePageRef = useRef(activePage);
@@ -63,9 +74,9 @@ export function useIpcListener(activePage: ActivePage) {
       });
       unlisteners.push(u1);
 
-      const u2 = await listen<MediaInfo>("media-update", (event) => {
+      const u2 = await listen<MediaInfo | null>("media-update", (event) => {
         try {
-          setMedia(decodeIpcPayload<MediaInfo>(event.payload));
+          setMedia(decodeIpcPayload<MediaInfo | null>(event.payload));
         } catch (error) {
           console.error("[media-update] invalid IPC payload", error);
         }
@@ -123,27 +134,38 @@ export function useIpcListener(activePage: ActivePage) {
     let initialDataFrame: number | null = null;
 
     if (activePage === "dashboard") {
+      const cache = useSystemStore.getState().cacheUpdatedAt;
       // Dashboard-only reads sleep as soon as another page is selected.
       unregisterFetches.push(
-        dashboardFetchQueue.register("battery", fetchBattery, { cadenceTicks: 3, initialDelayMs: 100 }),
-        dashboardFetchQueue.register("processes", fetchProcesses, { initialDelayMs: 800 }),
+        dashboardFetchQueue.register("battery", fetchBattery, {
+          cadenceTicks: 3,
+          initialDelayMs: 100,
+          runInitially: !isFresh(cache.battery, BATTERY_CACHE_TTL_MS),
+        }),
+        dashboardFetchQueue.register("processes", fetchProcesses, {
+          initialDelayMs: 800,
+          runInitially: !isFresh(cache.processes, PROCESS_CACHE_TTL_MS),
+        }),
       );
 
       // Yield one frame so the dashboard shell and skeletons paint first.
       initialDataFrame = globalThis.requestAnimationFrame(() => {
-        dashboardFetchQueue.enqueue("initial-audio", async () => {
-          setAudio(await invoke<AudioState>("get_audio_state"));
-        });
-        dashboardFetchQueue.enqueue("initial-media", async () => {
-          const media = await invoke<MediaInfo | null>("get_media_info");
-          if (media) setMedia(media);
-        });
+        dashboardFetchQueue.enqueue("initial-audio", () => fetchAudio(AUDIO_CACHE_TTL_MS));
+        dashboardFetchQueue.enqueue("initial-media", () => fetchMedia(MEDIA_CACHE_TTL_MS));
       });
     } else if (activePage === "msi") {
+      const cache = useSystemStore.getState().cacheUpdatedAt;
       // Keep only data consumed by MSI Center awake.
       unregisterFetches.push(
-        dashboardFetchQueue.register("battery", fetchBattery, { cadenceTicks: 3, initialDelayMs: 100 }),
-        dashboardFetchQueue.register("msi-ec", fetchMsiEcState, { initialDelayMs: 500 }),
+        dashboardFetchQueue.register("battery", fetchBattery, {
+          cadenceTicks: 3,
+          initialDelayMs: 100,
+          runInitially: !isFresh(cache.battery, BATTERY_CACHE_TTL_MS),
+        }),
+        dashboardFetchQueue.register("msi-ec", fetchMsiEcState, {
+          initialDelayMs: 500,
+          runInitially: !isFresh(cache.msiEc, MSI_EC_CACHE_TTL_MS),
+        }),
       );
     } else if (isGameRunning) {
       // Poll only while a game truly exists. Extend the normal 10-second
@@ -160,5 +182,5 @@ export function useIpcListener(activePage: ActivePage) {
       if (initialDataFrame !== null) globalThis.cancelAnimationFrame(initialDataFrame);
       unregisterFetches.forEach((unregister) => unregister());
     };
-  }, [activePage, isGameRunning, setAudio, setMedia, fetchProcesses, fetchBattery, fetchRunningGame, fetchMsiEcState]);
+  }, [activePage, isGameRunning, fetchAudio, fetchMedia, fetchProcesses, fetchBattery, fetchRunningGame, fetchMsiEcState]);
 }

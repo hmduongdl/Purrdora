@@ -148,7 +148,13 @@ class DashboardFetchQueue {
       void Promise.resolve()
         .then(task)
         .catch((error) => console.error(`[dashboard-fetch:${key}]`, error))
-        .finally(() => this.inFlight.delete(key));
+        .finally(() => {
+          this.inFlight.delete(key);
+          // A page can remount and queue the same resource while the previous
+          // component's request is still finishing. Drain that one follow-up
+          // immediately instead of leaving it parked until the next 10s tick.
+          if (this.pending.has(key)) this.scheduleDrain();
+        });
     }
   }
 }

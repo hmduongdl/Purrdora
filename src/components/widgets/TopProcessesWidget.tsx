@@ -15,7 +15,7 @@ export function TopProcessesWidget() {
             <div key={i} className="skeleton h-4 w-full rounded" />
           ))
         ) : (
-          processes.map(({ pid, name, process_count, mem_mb, mem_percent }, idx) => {
+          processes.slice(0, 5).map(({ pid, name, process_count, mem_mb, mem_percent }, idx) => {
             const largestUsage = processes[0]?.mem_percent || 1;
             const barWidth = Math.min(100, (mem_percent / largestUsage) * 100);
             return (

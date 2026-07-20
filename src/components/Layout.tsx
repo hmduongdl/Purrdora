@@ -12,7 +12,7 @@ const Layout = memo(function Layout({ children, fullscreen = false }: LayoutProp
     <div className="app-page-frame flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#0a0a0f] text-[#e4e1e9]">
       <main
         ref={mainRef}
-        className={`dashboard-main custom-scrollbar min-h-0 flex-1 overflow-y-auto${fullscreen ? " dashboard-fullscreen" : ""}`}
+        className={`dashboard-main custom-scrollbar min-h-0 flex-1 overflow-y-hidden${fullscreen ? " dashboard-fullscreen" : ""}`}
       >
         <div className="dashboard-columns w-full">
           {children}
