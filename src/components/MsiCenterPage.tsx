@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Activity, BatteryCharging, BriefcaseBusiness, Cpu, Eraser, Gamepad2, Gauge, HardDrive, Keyboard, LoaderCircle, MemoryStick, Timer, VolumeX, Wind, X, Zap } from "lucide-react";
+import { Activity, BatteryCharging, BriefcaseBusiness, Cpu, Eraser, Gamepad2, Gauge, HardDrive, Keyboard, Leaf, LoaderCircle, MemoryStick, Timer, Wind, X, Zap } from "lucide-react";
 import { useSystemStore } from "../store/useSystemStore";
 import { InfoTooltip } from "./ui/InfoTooltip";
 
@@ -7,7 +7,7 @@ const PINK = "#ec1c6f";
 const CYAN = "#22d3ee";
 const AUTO_FAN_ENABLE_TEMPERATURE = 78;
 const AUTO_FAN_DISABLE_TEMPERATURE = 72;
-const AUTO_FAN_ENABLE_DELAY_MS = 9_000;
+const AUTO_FAN_ENABLE_DELAY_MS = 60_000;
 const AUTO_FAN_DISABLE_DELAY_MS = 30_000;
 const AUTO_FAN_MINIMUM_ON_MS = 60_000;
 
@@ -35,12 +35,12 @@ function MetricCard({ title, value, unit, accent, icon, history }: {
 }) {
   return (
     <article className="msi-card flex min-h-0 min-w-0 flex-col p-4">
-      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[.16em]" style={{ color: accent }}>
+      <div className="flex items-center justify-between text-[13.5px] font-bold uppercase tracking-[.16em]" style={{ color: accent }}>
         {title}<span className="text-slate-500">{icon}</span>
       </div>
       <div className="mt-1.5 flex items-baseline gap-1">
         <span className="msi-number" style={{ color: accent }}>{value}</span>
-        <span className="text-sm text-slate-400">{unit}</span>
+        <span className="text-base text-slate-400">{unit}</span>
       </div>
       <MiniChart values={history} color={accent} />
     </article>
@@ -80,14 +80,22 @@ function HardwareControl() {
   const modes = state?.available_shift_modes ?? ["eco", "comfort", "turbo"];
   const fans = state?.available_fan_modes ?? ["auto", "silent", "advanced"];
   const [fanModalOpen, setFanModalOpen] = useState(false);
-  const autoBoosted = useRef(false);
+  const [isAutoBoosted, setIsAutoBoosted] = useState(false);
+  const isAutoBoostedRef = useRef(isAutoBoosted);
+  useEffect(() => {
+    isAutoBoostedRef.current = isAutoBoosted;
+  }, [isAutoBoosted]);
+
   const autoBoostedAt = useRef<number | null>(null);
   const highTemperatureSince = useRef<number | null>(null);
   const lowTemperatureSince = useRef<number | null>(null);
 
+  const isManualCoolerBoost = Boolean(state?.cooler_boost && !isAutoBoosted);
+
   useEffect(() => {
     if (unsupported) {
-      autoBoosted.current = false;
+      setIsAutoBoosted(false);
+      isAutoBoostedRef.current = false;
       autoBoostedAt.current = null;
       highTemperatureSince.current = null;
       lowTemperatureSince.current = null;
@@ -103,14 +111,15 @@ function HardwareControl() {
       // Auto fan control belongs to the EC's Auto profile. Choosing another
       // profile immediately hands fan control back to that profile.
       if (!autoProfileSelected) {
-        autoBoosted.current = false;
+        setIsAutoBoosted(false);
+        isAutoBoostedRef.current = false;
         autoBoostedAt.current = null;
         highTemperatureSince.current = null;
         lowTemperatureSince.current = null;
         return;
       }
 
-      if (!autoBoosted.current) {
+      if (!isAutoBoostedRef.current) {
         lowTemperatureSince.current = null;
         // Do not take ownership of a Cooler Boost that was enabled manually.
         if (currentEcState?.cooler_boost) {
@@ -123,7 +132,8 @@ function HardwareControl() {
         }
         highTemperatureSince.current ??= now;
         if (now - highTemperatureSince.current >= AUTO_FAN_ENABLE_DELAY_MS) {
-          autoBoosted.current = true;
+          setIsAutoBoosted(true);
+          isAutoBoostedRef.current = true;
           autoBoostedAt.current = now;
           highTemperatureSince.current = null;
           void setBoost(true);
@@ -140,7 +150,8 @@ function HardwareControl() {
       const boostOnLongEnough = now - (autoBoostedAt.current ?? now) >= AUTO_FAN_MINIMUM_ON_MS;
       const temperatureStableEnough = now - lowTemperatureSince.current >= AUTO_FAN_DISABLE_DELAY_MS;
       if (boostOnLongEnough && temperatureStableEnough) {
-        autoBoosted.current = false;
+        setIsAutoBoosted(false);
+        isAutoBoostedRef.current = false;
         autoBoostedAt.current = null;
         lowTemperatureSince.current = null;
         void setBoost(false);
@@ -156,9 +167,9 @@ function HardwareControl() {
     <article className="msi-card msi-hardware-control min-w-0 p-5">
       <div className="flex min-w-0 items-center justify-between gap-3">
         <h2 className="msi-section-title">MSI Hardware Control</h2>
-        <span className="shrink-0 rounded-md border border-white/10 bg-black/20 px-2 py-1 font-mono text-[9px] uppercase text-slate-400">EC {state?.fw_version ?? "offline"}</span>
+        <span className="shrink-0 rounded-md border border-white/10 bg-black/20 px-2 py-1 font-mono text-[13px] uppercase text-slate-400">EC {state?.fw_version ?? "offline"}</span>
       </div>
-      {unsupported && <p className="mt-2 text-[10px] text-amber-400">msi-ec driver not detected</p>}
+      {unsupported && <p className="mt-2 text-[14px] text-amber-400">msi-ec driver not detected</p>}
 
       <div className="msi-control-group mt-4">
         <div className="flex items-center gap-1.5">
@@ -187,30 +198,54 @@ function HardwareControl() {
         <div className="grid grid-cols-3 gap-2">
           {fans.slice(0, 3).map((mode) => (
             <button disabled={unsupported} key={mode} onClick={() => {
+              setIsAutoBoosted(false);
+              isAutoBoostedRef.current = false;
               if (mode === "advanced") {
                 void setBoost(false);
                 void setFan(mode);
                 setFanModalOpen(true);
               } else { void setBoost(false); void setFan(mode); }
             }}
-              className={`msi-option msi-option-compact ${state?.fan_mode === mode && !state.cooler_boost ? "active-cyan" : ""}`}>
+              className={`msi-option msi-option-compact ${
+                mode === "auto"
+                  ? (state?.fan_mode === "auto" ? "active-cyan" : "")
+                  : (state?.fan_mode === mode && !isManualCoolerBoost ? "active-cyan" : "")
+              }`}>
               <Wind size={12} />{mode}
             </button>
           ))}
         </div>
       </div>
 
-      <button disabled={unsupported} onClick={() => void setBoost(!state?.cooler_boost)}
-        className={`msi-cooler-boost mt-4 flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-[10px] font-bold uppercase ${state?.cooler_boost ? "border-pink-accent bg-pink-accent/10 text-pink-accent" : "border-white/10 text-slate-400"}`}>
-        <span className="flex items-center gap-2"><Wind size={13} />Cooler boost</span><span>{state?.cooler_boost ? "ON" : "OFF"}</span>
+      <button disabled={unsupported} onClick={() => {
+        const nextBoost = !state?.cooler_boost;
+        setIsAutoBoosted(false);
+        isAutoBoostedRef.current = false;
+        void setBoost(nextBoost);
+      }}
+        className={`msi-cooler-boost mt-4 flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-[14px] font-bold uppercase ${isManualCoolerBoost ? "border-pink-accent bg-pink-accent/10 text-pink-accent" : "border-white/10 text-slate-400"}`}>
+        <span className="flex items-center gap-2"><Wind size={13} />Cooler boost</span><span>{isManualCoolerBoost ? "ON" : "OFF"}</span>
       </button>
       <HardwareMonitoring />
-      {fanModalOpen && <FanControlModal onClose={() => setFanModalOpen(false)} />}
+      {fanModalOpen && (
+        <FanControlModal
+          onClose={() => setFanModalOpen(false)}
+          isManualCoolerBoost={isManualCoolerBoost}
+          onManualChange={() => {
+            setIsAutoBoosted(false);
+            isAutoBoostedRef.current = false;
+          }}
+        />
+      )}
     </article>
   );
 }
 
-function FanControlModal({ onClose }: { onClose: () => void }) {
+function FanControlModal({ onClose, onManualChange, isManualCoolerBoost }: {
+  onClose: () => void;
+  onManualChange: () => void;
+  isManualCoolerBoost: boolean;
+}) {
   const state = useSystemStore((s) => s.msiEcState);
   const setFan = useSystemStore((s) => s.setMsiEcFanMode);
   const setBoost = useSystemStore((s) => s.setMsiEcCoolerBoost);
@@ -228,6 +263,7 @@ function FanControlModal({ onClose }: { onClose: () => void }) {
   const apply = async (id: string) => {
     setBusy(true); setError(null);
     try {
+      onManualChange();
       if (id === "boost") await setBoost(true);
       else { await setBoost(false); await setFan(id); }
       await refresh();
@@ -240,21 +276,25 @@ function FanControlModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="fan-control-title" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#12131a] p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
-          <div><h2 id="fan-control-title" className="text-sm font-bold uppercase tracking-wider">Fan Control</h2><p className="mt-1 text-[10px] text-slate-500">MSI Cyborg 15 · EC {state?.fw_version}</p></div>
+          <div><h2 id="fan-control-title" className="text-base font-bold uppercase tracking-wider">Fan Control</h2><p className="mt-1 text-[14px] text-slate-500">MSI Cyborg 15 · EC {state?.fw_version}</p></div>
           <button onClick={onClose} className="rounded-lg border border-white/10 p-2 text-slate-400 hover:text-white" aria-label="Close fan control"><X size={15} /></button>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-xl border border-white/10 bg-black/20 p-3"><span className="text-[9px] uppercase text-slate-500">CPU fan</span><p className="mt-1 font-mono text-xl text-pink-accent">{state?.cpu_fan_speed ?? 0}%</p></div>
-          <div className="rounded-xl border border-white/10 bg-black/20 p-3"><span className="text-[9px] uppercase text-slate-500">GPU fan</span><p className="mt-1 font-mono text-xl text-cyan-accent">{state?.gpu_fan_speed ?? 0}%</p></div>
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3"><span className="text-[13px] uppercase text-slate-500">CPU fan</span><p className="mt-1 font-mono text-[22px] text-pink-accent">{state?.cpu_fan_speed ?? 0}%</p></div>
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3"><span className="text-[13px] uppercase text-slate-500">GPU fan</span><p className="mt-1 font-mono text-[22px] text-cyan-accent">{state?.gpu_fan_speed ?? 0}%</p></div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
           {presets.map((preset) => {
-            const active = preset.id === "boost" ? state?.cooler_boost : !state?.cooler_boost && state?.fan_mode === preset.id;
-            return <button key={preset.id} disabled={busy || !preset.enabled} onClick={() => void apply(preset.id)} className={`rounded-xl border p-3 text-left transition-colors disabled:opacity-35 ${active ? "border-pink-accent bg-pink-accent/10" : "border-white/10 hover:border-white/20"}`}><span className={`text-[10px] font-bold uppercase ${active ? "text-pink-accent" : "text-slate-200"}`}>{preset.label}</span><p className="mt-1 text-[8px] text-slate-500">{preset.detail}</p></button>;
+            const active = preset.id === "boost"
+              ? isManualCoolerBoost
+              : (preset.id === "auto"
+                  ? state?.fan_mode === "auto"
+                  : !isManualCoolerBoost && state?.fan_mode === preset.id);
+            return <button key={preset.id} disabled={busy || !preset.enabled} onClick={() => void apply(preset.id)} className={`rounded-xl border p-3 text-left transition-colors disabled:opacity-35 ${active ? "border-pink-accent bg-pink-accent/10" : "border-white/10 hover:border-white/20"}`}><span className={`text-[14px] font-bold uppercase ${active ? "text-pink-accent" : "text-slate-200"}`}>{preset.label}</span><p className="mt-1 text-[14px] text-slate-500">{preset.detail}</p></button>;
           })}
         </div>
-        <p className="mt-4 rounded-lg border border-amber-400/15 bg-amber-400/5 p-3 text-[9px] leading-relaxed text-amber-200/80">Firmware 15K1IMS1.113 exposes fan presets and realtime speed only. It does not expose temperature/speed curve points, so direct percentage sliders would be unsafe and misleading.</p>
-        {error && <p role="alert" className="mt-3 text-[9px] text-red-400">{error}</p>}
+        <p className="mt-4 rounded-lg border border-amber-400/15 bg-amber-400/5 p-3 text-[13px] leading-relaxed text-amber-200/80">Firmware 15K1IMS1.113 exposes fan presets and realtime speed only. It does not expose temperature/speed curve points, so direct percentage sliders would be unsafe and misleading.</p>
+        {error && <p role="alert" className="mt-3 text-[13px] text-red-400">{error}</p>}
       </div>
     </div>
   );
@@ -267,7 +307,7 @@ function UsageRing({ label, value, color }: { label: string; value: number; colo
       <div className="usage-ring" style={{ "--usage": `${safeValue}%`, "--ring-color": color } as CSSProperties}>
         <strong>{Math.round(safeValue)}</strong><span>%</span>
       </div>
-      <p className="text-[8px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="text-[14px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
     </div>
   );
 }
@@ -299,7 +339,7 @@ function HardwareMonitoring() {
 
   return (
     <div className="msi-hardware-monitoring mt-4 border-t border-white/10 pt-3">
-      <p className="msi-monitoring-title mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.16em] text-slate-300"><Activity size={13} className="text-cyan-accent" />Hardware Monitoring</p>
+      <p className="msi-monitoring-title mb-2 flex items-center gap-2 text-[14px] font-bold uppercase tracking-[.16em] text-slate-300"><Activity size={13} className="text-cyan-accent" />Hardware Monitoring</p>
       <div className="msi-monitoring-grid grid grid-cols-[150px_1fr] items-center gap-4">
         <div className="grid grid-cols-2 gap-2">
           <UsageRing label="CPU Usage" value={cpuUsage} color={PINK} />
@@ -317,9 +357,9 @@ function HardwareMonitoring() {
 function ResourceUsage({ label, value, detail, icon, busy, animationKey, onClean }: { label: string; value: number; detail: string; icon: ReactNode; busy: boolean; animationKey: number; onClean: () => void }) {
   return (
     <div className="msi-resource-usage min-w-0 rounded-lg border border-white/[.07] bg-black/15 p-2.5">
-      <div className="flex items-center justify-between"><span className="flex items-center gap-1.5 text-[9px] font-bold uppercase text-slate-300">{icon}{label}</span><strong className="font-mono text-sm text-slate-100">{Math.round(value)}%</strong></div>
+      <div className="flex items-center justify-between"><span className="flex items-center gap-1.5 text-[12.5px] font-bold uppercase text-slate-300">{icon}{label}</span><strong className="font-mono text-base text-slate-100">{Math.round(value)}%</strong></div>
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10"><div key={`${label}-${animationKey}`} className="resource-progress h-full rounded-full bg-pink-accent" style={{ "--target-width": `${Math.max(0, Math.min(100, value))}%` } as CSSProperties} /></div>
-      <div className="mt-2 flex items-center justify-between gap-2"><span className="truncate text-[8px] text-slate-500">{detail}</span><button onClick={onClean} disabled={busy} className="flex shrink-0 items-center gap-1 rounded-full bg-primary px-2 py-1 text-[8px] font-bold text-white transition-transform active:scale-95 disabled:cursor-wait disabled:opacity-50"><span className={busy ? "animate-spin" : ""}>{busy ? <LoaderCircle size={9} /> : <Eraser size={9} />}</span>{busy ? "Working" : "Free"}</button></div>
+      <div className="mt-2 flex items-center justify-between gap-2"><span className="truncate text-[13.5px] text-slate-400">{detail}</span><button onClick={onClean} disabled={busy} className="flex shrink-0 items-center gap-1 rounded-full bg-primary px-2 py-1 text-[13px] font-bold text-white transition-transform active:scale-95 disabled:cursor-wait disabled:opacity-50"><span className={busy ? "animate-spin" : ""}>{busy ? <LoaderCircle size={9} /> : <Eraser size={9} />}</span>{busy ? "Working" : "Free"}</button></div>
     </div>
   );
 }
@@ -328,6 +368,7 @@ function BatteryMaster() {
   const battery = useSystemStore((s) => s.battery);
   const setHealthMode = useSystemStore((s) => s.setBatteryLimiter);
   const percent = battery?.present ? battery.percent : 0;
+  const isPluggedIn = Boolean(battery?.charging || ["Not charging", "Full"].includes(battery?.status ?? ""));
   const [healthBusy, setHealthBusy] = useState(false);
   const [healthError, setHealthError] = useState<string | null>(null);
   const toggleHealth = async () => {
@@ -338,34 +379,55 @@ function BatteryMaster() {
   };
 
   return (
-    <article className="msi-card msi-battery-master flex min-h-0 min-w-0 flex-col items-center p-4">
-      <div className="flex w-full items-center justify-between">
+    <article className="msi-card msi-battery-master flex min-h-0 min-w-0 flex-col p-3 justify-start gap-2 max-h-[195px]">
+      <div className="flex w-full items-center justify-between shrink-0">
         <h2 className="msi-section-title">Battery Master</h2>
-        <BatteryCharging size={16} className="text-pink-accent" />
+        <BatteryCharging size={14} className="text-pink-accent" />
       </div>
-      <div className="flex shrink-0 flex-col items-center justify-center py-3">
-        <div className="battery-ring msi-battery-ring" style={{ "--battery": `${percent}%`, "--battery-value": percent } as CSSProperties}>
-          <svg viewBox="0 0 100 100" role="img" aria-label={`${battery?.present ? battery.percent : "—"}% ${battery?.charging ? "charging" : "discharging"}`}>
-            <circle className="battery-ring-track" cx="50" cy="50" r="46" />
-            <circle className="battery-ring-progress" cx="50" cy="50" r="46" pathLength="100" />
-            <text className="battery-ring-percent" x="50" y="48">{battery?.present ? battery.percent : "—"}%</text>
-            <text className="battery-ring-status" x="50" y="61">{battery?.charging ? "CHARGING" : "DISCHARGING"}</text>
-          </svg>
+
+      <div className="flex flex-1 items-center gap-3 mt-1.5 min-h-0">
+        {/* Battery Ring Column */}
+        <div className="flex shrink-0 items-center justify-center">
+          <div className="battery-ring msi-battery-ring-compact" style={{ "--battery": `${percent}%`, "--battery-value": percent } as CSSProperties}>
+            <svg viewBox="0 0 100 100" role="img" aria-label={`${battery?.present ? battery.percent : "—"}% ${isPluggedIn ? "charging" : "discharging"}`}>
+              <circle className="battery-ring-track" cx="50" cy="50" r="46" />
+              <circle className="battery-ring-progress" cx="50" cy="50" r="46" pathLength="100" />
+              <text className="battery-ring-percent" x="50" y="56" style={{ fontSize: "24px", fontWeight: 800 }}>
+                {battery?.present ? battery.percent : "—"}%
+              </text>
+            </svg>
+          </div>
+        </div>
+
+        {/* Info Column */}
+        <div className="flex-1 flex flex-col justify-center gap-1.5 min-w-0">
+          <div className="rounded-lg border border-white/5 bg-white/[0.015] px-2 py-1">
+            <span className="flex items-center gap-1 text-[13.5px] uppercase tracking-wider text-slate-400 font-bold">
+              <Timer size={11} /> {isPluggedIn ? "Power Source" : "Est. Runtime"}
+            </span>
+            <span className="mt-0.5 block text-[14px] font-bold text-slate-200 truncate">
+              {isPluggedIn ? "AC MODE" : formatRuntime(battery?.estimated_runtime_minutes)}
+            </span>
+          </div>
+
+          <div className="rounded-lg border border-white/5 bg-white/[0.015] px-2 py-1 flex justify-between items-center text-[13px]">
+            <span className="text-[13.5px] uppercase tracking-wider text-slate-400 font-bold">Battery health</span>
+            <strong className="font-mono text-slate-200 text-[14px]">
+              {battery?.health_percent == null ? "—" : `${battery.health_percent}%`}
+            </strong>
+          </div>
         </div>
       </div>
-      <div className="w-full rounded-lg border border-white/10 bg-white/[.03] px-3 py-2.5 text-center">
-        <p className="flex items-center justify-center gap-1.5 text-[8px] uppercase tracking-widest text-slate-500"><Timer size={10} />Estimated runtime</p>
-        <p className="mt-1 text-sm font-bold text-slate-200">{battery?.charging ? "AC connected" : formatRuntime(battery?.estimated_runtime_minutes)}</p>
-      </div>
-      <div className="mt-2 flex w-full items-center justify-between rounded-lg border border-white/10 px-3 py-2">
-        <div className="min-w-0"><p className="text-[10px] font-bold">Health Mode</p><p className="text-[8px] text-slate-500">Optimal longevity · 80% cap</p></div>
+
+      {/* Health Mode Toggle */}
+      <div className="mt-1.5 flex w-full items-center justify-between rounded-lg border border-white/10 px-2.5 py-1 shrink-0">
+        <div className="min-w-0">
+          <p className="text-[12.5px] font-bold">Health Mode</p>
+          <p className="text-[13px] text-slate-400">Optimal longevity · 80% cap</p>
+        </div>
         <div className={healthBusy ? "pointer-events-none opacity-50" : ""}><Toggle enabled={Boolean(battery?.health_mode)} onClick={() => void toggleHealth()} label="Health Mode" /></div>
       </div>
-      {healthError && <p role="alert" className="mt-2 w-full text-[8px] leading-relaxed text-red-400">{healthError}</p>}
-      <div className="mt-2 flex w-full items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-[10px]">
-        <span className="text-slate-500">Battery health</span>
-        <span className="font-mono text-slate-200">{battery?.health_percent == null ? "Unavailable" : `${battery.health_percent}%`}</span>
-      </div>
+      {healthError && <p role="alert" className="mt-1 w-full text-[13.5px] leading-relaxed text-red-400">{healthError}</p>}
     </article>
   );
 }
@@ -391,8 +453,8 @@ function KeyboardBacklight() {
         <div className="flex min-w-0 items-center gap-2">
           <Keyboard size={15} className="shrink-0 text-pink-accent" />
           <div className="min-w-0">
-            <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-200">Keyboard Backlight</h2>
-            <p className="mt-0.5 text-[8px] text-slate-500">{supported ? `Brightness ${level} / ${max}` : "Not supported"}</p>
+            <h2 className="text-[13px] font-bold uppercase tracking-wider text-slate-200">Keyboard Backlight</h2>
+            <p className="mt-0.5 text-[14px] text-slate-500">{supported ? `Brightness ${level} / ${max}` : "Not supported"}</p>
           </div>
         </div>
         <Toggle enabled={enabled} onClick={toggle} label="Keyboard Backlight" />
@@ -464,7 +526,7 @@ function OperatingModeCard() {
   const modes: { id: typeof mode; label: string; icon: ReactNode; description: string }[] = [
     { id: "work", label: "Work", icon: <BriefcaseBusiness size={14} />, description: "Balanced daily profile" },
     { id: "game", label: "Game", icon: <Gamepad2 size={14} />, description: "Maximum performance" },
-    { id: "silent", label: "Silent", icon: <VolumeX size={14} />, description: "Quiet operation" },
+    { id: "eco", label: "Eco", icon: <Leaf size={14} />, description: "Power saving & battery health" },
   ];
 
   const activate = async (nextMode: typeof mode) => {
@@ -483,8 +545,7 @@ function OperatingModeCard() {
     <article className="msi-card min-w-0 p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-200">Operating Mode</h2>
-          <p className="mt-0.5 text-[8px] text-slate-500">Hardware, power and notification profile</p>
+          <h2 className="text-[13px] font-bold uppercase tracking-wider text-slate-200">Operating Mode</h2>
         </div>
         <Zap size={15} className="shrink-0 text-pink-accent" />
       </div>
@@ -494,11 +555,10 @@ function OperatingModeCard() {
             className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg border px-2 py-2.5 transition-colors ${mode === item.id ? "border-pink-accent bg-pink-accent/10 text-pink-accent" : "border-white/10 text-slate-400 hover:border-white/20 hover:text-slate-200"}`}>
             {item.icon}
             <span className="text-[9px] font-bold uppercase tracking-wider">{item.label}</span>
-            <span className="hidden max-w-full truncate text-[7px] text-slate-500 xl:block">{item.description}</span>
           </button>
         ))}
       </div>
-      {message && <p role="status" className="mt-2 line-clamp-2 text-[8px] leading-relaxed text-amber-300">{message}</p>}
+      {message && <p role="status" className="mt-2 line-clamp-2 text-[14px] leading-relaxed text-amber-300">{message}</p>}
     </article>
   );
 }

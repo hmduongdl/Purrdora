@@ -35,6 +35,8 @@ const ICON_MAP: Record<string, ReactNode> = {
   "TRÒ CHƠI ĐANG CHẠY": <Gamepad2 size={14} strokeWidth={2} />,
   "TIẾN TRÌNH HÀNG ĐẦU": <ListOrdered size={14} strokeWidth={2} />,
   "PERFORMANCE / HISTORY": <BarChart3 size={14} strokeWidth={2} />,
+  "hardware-health": <Cpu size={14} strokeWidth={2} />,
+  "SỨC KHỎE PHẦN CỨNG": <Cpu size={14} strokeWidth={2} />,
 };
 
 const COLOR_MAP: Record<string, string> = {
@@ -50,6 +52,8 @@ const COLOR_MAP: Record<string, string> = {
   "TRÒ CHƠI ĐANG CHẠY": "text-pink-accent",
   "TIẾN TRÌNH HÀNG ĐẦU": "text-primary",
   "PERFORMANCE / HISTORY": "text-primary",
+  "hardware-health": "text-amber-400",
+  "SỨC KHỎE PHẦN CỨNG": "text-amber-400",
 };
 
 export const WidgetFactory = memo(function WidgetFactory({
@@ -100,3 +104,10 @@ export function StatusPill({
     </span>
   );
 }
+
+// ── Hardware Health Widget Registration ──
+import { HardwareHealthWidget } from "./HardwareHealthWidget";
+export const WIDGET_REGISTRY = {
+  "hardware-health": HardwareHealthWidget
+};
+

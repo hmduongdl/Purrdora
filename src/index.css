@@ -177,6 +177,7 @@ body {
 }
 
 .dashboard-main {
+  font-size: 24px;
   padding: clamp(8px, 1.2vw, 24px);
   padding-bottom: 16px;
 }
@@ -248,6 +249,7 @@ body {
 /* Tauri fullscreen is a window state rather than the browser Fullscreen API,
    so the class is applied by Layout. */
 .dashboard-fullscreen {
+  font-size: 24px;
   position: relative;
   padding: clamp(16px, 1.4vw, 28px);
   padding-bottom: 16px;
@@ -669,7 +671,8 @@ body {
    size, and preserve the shared top/bottom grid lines at every size. */
 .dashboard-fullscreen,
 .game-page-main-fullscreen,
-.msi-page-fullscreen {
+.msi-page-fullscreen,
+.drivers-page-fullscreen {
   /* Keep page cards below the fixed fullscreen header. The header can be as
      tall as its logo, so its top inset alone is not enough clearance. */
   --fs-header-inset: clamp(18px, 1.6vw, 28px);
@@ -752,7 +755,8 @@ body {
 
   .dashboard-fullscreen,
   .game-page-main-fullscreen,
-  .msi-page-fullscreen {
+  .msi-page-fullscreen,
+  .drivers-page-fullscreen {
     --fs-gap: 8px;
     --fs-footer-clearance: 24px;
   }
@@ -781,7 +785,8 @@ body {
 
   .dashboard-fullscreen,
   .game-page-main-fullscreen,
-  .msi-page-fullscreen {
+  .msi-page-fullscreen,
+  .drivers-page-fullscreen {
     --fs-gap: 12px;
     --fs-footer-clearance: 36px;
   }
@@ -826,7 +831,8 @@ body {
 
   .dashboard-fullscreen,
   .game-page-main-fullscreen,
-  .msi-page-fullscreen {
+  .msi-page-fullscreen,
+  .drivers-page-fullscreen {
     --fs-gap: clamp(14px, 1.1vw, 24px);
   }
 
@@ -1099,7 +1105,6 @@ body {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  height: calc(100% - var(--dock-height, 68px) - 16px);
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
@@ -1201,6 +1206,13 @@ body {
   width: 150px;
   height: 150px;
   flex: 0 0 auto;
+}
+
+.msi-utility-row .msi-battery-ring-compact {
+  width: 76px;
+  height: 76px;
+  flex: 0 0 auto;
+  background: #16161e;
 }
 
 .msi-utility-row .msi-battery-ring strong {
@@ -1571,7 +1583,11 @@ body {
   }
 }
 
-::-webkit-scrollbar {
+/* Hide scrollbars only on structural chrome, not content areas.
+   Content scrollbars use .custom-scrollbar for a visible 4px thumb. */
+body::-webkit-scrollbar,
+#root::-webkit-scrollbar,
+.app-shell::-webkit-scrollbar {
   display: none;
 }
 
@@ -1613,7 +1629,8 @@ body {
 }
 
 .app-page-frame,
-.msi-page {
+.msi-page,
+.drivers-page {
   min-height: 0;
   flex: 1 1 0;
 }
@@ -1628,58 +1645,6 @@ body {
 
 .dock-region>.glass-panel {
   width: 100%;
-}
-
-.msi-page {
-  height: auto;
-  padding-bottom: 24px;
-}
-
-/* Fullscreen keeps the header as chrome, but never constrains page content to
-   a fixed card grid. The page-level scroller remains the single safe overflow
-   boundary above the dock. */
-.game-page-main-fullscreen {
-  overflow-y: auto;
-}
-
-.game-page-fullscreen .dashboard-columns,
-.game-page-fullscreen .dashboard-column,
-.game-page-fullscreen .dashboard-column>.glass-panel {
-  height: auto;
-  min-height: auto;
-  overflow: visible;
-}
-
-.game-page-fullscreen .dashboard-column>.glass-panel>.widget-content {
-  overflow: visible;
-}
-
-.msi-page-fullscreen {
-  height: auto;
-  overflow-y: auto;
-}
-
-.msi-page-fullscreen .msi-monitor-layout,
-.msi-page-fullscreen .msi-details-row {
-  height: auto;
-  overflow: visible;
-}
-
-/* Use intrinsic rows after leaving the old fixed fullscreen grid. Without
-   this, flex-basis: 0 from that grid collapses the MSI detail area. */
-.msi-page-fullscreen .msi-metrics-row,
-.msi-page-fullscreen .msi-details-row {
-  flex: 0 0 auto;
-}
-
-.msi-page-fullscreen .msi-details-row {
-  min-height: auto;
-  grid-template-rows: max-content max-content;
-}
-
-.msi-page-fullscreen .msi-utility-row,
-.msi-page-fullscreen .msi-utility-stack {
-  overflow: visible;
 }
 
 /* ── MSI adaptive viewport layout ─────────────────────────────────────────
@@ -1744,9 +1709,8 @@ body {
   }
 
   .msi-page .msi-utility-row>.msi-battery-master {
-    height: 100%;
-    min-height: 0;
-    align-self: stretch;
+    height: auto;
+    align-self: start;
   }
 
   .msi-page .msi-utility-stack {
@@ -1909,7 +1873,6 @@ body {
 .game-page-main-fullscreen {
   --game-fs-gap: var(--fs-gap, clamp(8px, 1vw, 20px));
   box-sizing: border-box;
-  overflow: hidden;
   padding: clamp(12px, 1.25vw, 28px);
   padding-top: var(--fs-header-space);
   padding-bottom: 16px;
@@ -1917,20 +1880,6 @@ body {
 
 .game-page-fullscreen .dashboard-columns {
   --dashboard-gap: var(--game-fs-gap);
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.game-page-fullscreen .dashboard-column {
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.game-page-fullscreen .dashboard-column>.glass-panel {
-  min-height: 0;
-  overflow: hidden;
 }
 
 .game-page-fullscreen .dashboard-column:nth-child(1)>.glass-panel,
@@ -1944,7 +1893,6 @@ body {
 }
 
 .game-page-fullscreen .dashboard-column>.glass-panel>.widget-content {
-  overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 2px;
 }
@@ -1960,22 +1908,17 @@ body {
    page-level scrolling and preserves the aligned card grid. */
 .msi-page-fullscreen {
   --msi-fs-gap: var(--fs-gap, clamp(8px, 1vw, 20px));
-  height: calc(100% - var(--dock-height, 68px) - 16px);
   box-sizing: border-box;
-  overflow: hidden;
   padding: clamp(12px, 1.25vw, 28px);
   padding-top: var(--fs-header-space);
   padding-bottom: 16px;
 }
 
 .msi-page-fullscreen .msi-monitor-layout {
-  height: 100%;
-  overflow: hidden;
   gap: var(--msi-fs-gap);
 }
 
 .msi-page-fullscreen .msi-metrics-row {
-  flex: 0 0 clamp(104px, 15vh, 156px);
   gap: var(--msi-fs-gap);
 }
 
@@ -1985,11 +1928,7 @@ body {
 }
 
 .msi-page-fullscreen .msi-details-row {
-  flex: 1 1 0;
-  min-height: 0;
-  grid-template-rows: minmax(0, 1.1fr) minmax(0, .9fr);
   gap: var(--msi-fs-gap);
-  overflow: hidden;
 }
 
 .msi-page-fullscreen .msi-details-row>.msi-card,
@@ -2007,8 +1946,8 @@ body {
 }
 
 .msi-page-fullscreen .msi-utility-row>.msi-battery-master {
-  height: 100%;
-  align-self: stretch;
+  height: auto;
+  align-self: start;
 }
 
 .msi-page-fullscreen .msi-utility-row,
@@ -2036,8 +1975,8 @@ body {
   }
 }
 
-/* Keep these last: the fullscreen sizing rules above are intentionally
-   superseded by the shared page scroller when the dock occupies layout space. */
+/* Mobile-first fullscreen fallback: pages scroll naturally when the viewport
+   is too narrow for a fixed grid. Desktop media queries below override these. */
 .game-page-main-fullscreen {
   overflow-y: auto;
 }
@@ -2082,7 +2021,8 @@ body {
   overflow: visible;
 }
 
-/* Final MSI viewport contract. Keep after the legacy fullscreen rules. */
+/* Desktop (>=901px): switch MSI to a fixed two-tier grid that fills the
+   available flex space. Overrides the mobile-first scroll fallback above. */
 @media (min-width: 901px) {
 
   .msi-page,
@@ -2142,9 +2082,8 @@ body {
   }
 
   .msi-page .msi-utility-row>.msi-battery-master {
-    height: 100%;
-    min-height: 0;
-    align-self: stretch;
+    height: auto;
+    align-self: start;
   }
 
   .msi-page .msi-utility-stack {
@@ -2462,4 +2401,157 @@ body {
 
 .dashboard-fullscreen .media-track-artist {
   font-size: 10px;
+}
+
+/* ── Drivers Page fullscreen ────────────────────────────────────────────────
+   Reserve clearance for the fixed fullscreen header so content starts below it. */
+.drivers-page-fullscreen {
+  padding-top: var(--fs-header-space, clamp(70px, 8vh, 90px));
+  overflow-y: auto;
+}
+
+/* ── macOS Glassmorphism ────────────────────────────────────────────────── */
+.mac-glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  border-radius: 16px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mac-glass-card {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  transition: all 0.2s ease-in-out;
+}
+
+.mac-glass-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* ── Drivers / Hardware Health page ────────────────────────────────────────
+   Mirror the msi-page adaptive pattern: a CSS-class-driven layout that
+   responds to fullscreen state and every viewport size without inline style
+   overrides. The outer <main class="drivers-page"> is a direct flex child of
+   .app-shell (between the content area and the dock). */
+
+.drivers-page {
+  /* Fills the shell space left by the dock. */
+  min-height: 0;
+  flex: 1 1 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #0a0a0f;
+  /* same base padding as msi-page */
+  padding: clamp(8px, 1.2vw, 24px);
+  padding-bottom: calc(var(--dock-height, 68px) + 16px);
+}
+
+/* Two-column grid, matching the 7/5 split defined in the old TSX. */
+.drivers-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: clamp(12px, 1.5vw, 24px);
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+}
+
+.drivers-col {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(12px, 1.5vw, 24px);
+  min-width: 0;
+}
+
+.drivers-error-banner {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 4px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-left: 2px solid #f87171;
+  background: rgba(14, 15, 22, 0.6);
+  color: #f9a8d4;
+}
+
+/* ── Fullscreen mode ────────────────────────────────────────────────────────
+   When App.tsx passes fullscreen=true the outer <main> gains the class
+   "drivers-page-fullscreen". At that point:
+     - padding-top is replaced by --fs-header-space (set by the shared rule
+       already present in the file for the ".drivers-page-fullscreen" selector)
+     - padding-bottom accounts for the compact dock
+     - the two columns stretch to fill the remaining viewport height via a
+       fixed-height inner grid so no secondary scroll container is needed */
+
+.drivers-page.drivers-page-fullscreen {
+  padding: clamp(12px, 1.25vw, 28px);
+  /* --fs-header-space is set by the existing shared fullscreen rule above */
+  padding-top: var(--fs-header-space);
+  padding-bottom: var(--fs-footer-clearance, 40px);
+}
+
+/* On large viewports (desktop/fullscreen) the columns fill the available
+   height so the page never needs a second scroll bar (matching Dashboard). */
+@media (min-width: 901px) {
+  .drivers-page {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    --widget-padding: clamp(10px, 1.2vh, 16px);
+    --widget-gap: clamp(8px, 1vh, 12px);
+  }
+
+  .drivers-page.drivers-page-fullscreen {
+    overflow: hidden;
+  }
+
+  .drivers-page .drivers-layout {
+    height: 100%;
+    min-height: 0;
+    align-items: stretch;
+    gap: var(--fs-gap, clamp(12px, 1.5vw, 24px));
+  }
+
+  .drivers-page .drivers-col {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    gap: var(--fs-gap, clamp(12px, 1.5vw, 24px));
+  }
+}
+
+/* Narrow viewport: stack columns vertically. */
+@media (max-width: 900px) {
+  .drivers-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .drivers-col-right {
+    order: -1; /* device registry first on small screens */
+  }
+}
+
+/* Short laptop screens (≤900px height, wide): tighten gaps. */
+@media (max-height: 900px) and (min-width: 901px) {
+  .drivers-page {
+    --widget-padding: clamp(8px, 1vh, 12px);
+    --widget-gap: clamp(6px, 0.8vh, 10px);
+  }
 }

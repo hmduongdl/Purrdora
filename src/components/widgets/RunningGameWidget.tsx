@@ -23,19 +23,19 @@ export function RunningGameWidget() {
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold truncate">{game.name}</p>
-            <p className="font-mono text-[10px] text-on-surface-variant">
+            <p className="text-base font-bold truncate">{game.name}</p>
+            <p className="font-mono text-[11.5px] text-on-surface-variant">
               PID {game.pid} · CPU {game.cpu_percent.toFixed(1)}%
             </p>
 
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded border border-white/5 bg-black/30 p-2">
-                <p className="text-[8px] uppercase text-on-surface-variant">GPU Temp</p>
-                <p className="font-mono text-[10px] font-bold">{gpuTemp}</p>
+                <p className="text-[9.5px] uppercase text-on-surface-variant font-bold">GPU Temp</p>
+                <p className="font-mono text-[11.5px] font-bold">{gpuTemp}</p>
               </div>
               <div className="rounded border border-white/5 bg-black/30 p-2">
-                <p className="text-[8px] uppercase text-on-surface-variant">VRAM</p>
-                <p className="font-mono text-[10px] font-bold">{vram}</p>
+                <p className="text-[9.5px] uppercase text-on-surface-variant font-bold">VRAM</p>
+                <p className="font-mono text-[11.5px] font-bold">{vram}</p>
               </div>
             </div>
           </div>
@@ -44,8 +44,8 @@ export function RunningGameWidget() {
         <div className="flex items-center gap-3 rounded border border-white/5 bg-black/20 p-3">
           <Flame size={20} className="shrink-0 text-pink-accent/30" />
           <div>
-            <p className="text-xs font-bold text-on-surface-variant">Không phát hiện trò chơi</p>
-            <p className="text-[9px] text-slate-500">
+            <p className="text-sm font-bold text-on-surface-variant">Không phát hiện trò chơi</p>
+            <p className="text-[10.5px] text-slate-400 mt-0.5">
               GPU: {gpu ? `${(gpu.usage_percent ?? 0).toFixed(0)}%` : "—"} ·
               VRAM: {vram}
             </p>

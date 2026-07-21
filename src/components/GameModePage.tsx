@@ -78,9 +78,9 @@ export default function GameModePage({ fullscreen = false }: { fullscreen?: bool
         <div className="dashboard-columns w-full">
           {/* ── Cột 1: Điều khiển Game Mode ── */}
           <div className="dashboard-column">
-            <WidgetFactory title="MODE CONTROL" icon={<Gamepad2 size={14} />} accentColor="text-emerald-400">
+            <WidgetFactory title="MODE CONTROL" icon={<Gamepad2 size={15} />} accentColor="text-emerald-400">
               <div className="flex flex-col gap-3 py-1">
-                <p className="text-[10px] text-on-surface-variant leading-relaxed">
+                <p className="text-[11.5px] text-on-surface-variant leading-relaxed">
                   Kích hoạt Chế độ Trò chơi để tối ưu bộ điều phối CPU, cấu hình năng lượng GPU và khởi động dịch vụ GameMode nhằm đạt hiệu năng tối đa.
                 </p>
 
@@ -98,17 +98,17 @@ export default function GameModePage({ fullscreen = false }: { fullscreen?: bool
                   )}
 
                   <Gamepad2
-                    size={32}
+                    size={34}
                     className={`transition-transform duration-500 group-hover:scale-110 ${
                       active ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" : "text-slate-600"
                     }`}
                   />
                   
-                  <span className="mt-2 text-[11px] font-bold uppercase tracking-wider">
+                  <span className="mt-2 text-[14.5px] font-bold uppercase tracking-wider">
                     {active ? "Chế độ Trò chơi: Đang bật" : "Chế độ Trò chơi: Đang tắt"}
                   </span>
                   
-                  <span className="mt-0.5 text-[8px] text-on-surface-variant font-mono">
+                  <span className="mt-0.5 text-[12px] text-on-surface-variant font-mono">
                     {active ? "Nhấn để tắt chế độ hiệu năng" : "Nhấn để tối ưu hiệu năng trò chơi"}
                   </span>
                 </button>
@@ -116,19 +116,19 @@ export default function GameModePage({ fullscreen = false }: { fullscreen?: bool
                 {/* Performance stats summary */}
                 <div className="grid grid-cols-2 gap-2 mt-1">
                   <div className="flex items-center gap-2 rounded border border-white/5 bg-black/20 p-2">
-                    <Cpu size={12} className="text-cyan-accent" />
+                    <Cpu size={14} className="text-cyan-accent" />
                     <div>
-                      <p className="text-[8px] uppercase text-on-surface-variant">CPU Governor</p>
-                      <p className="font-mono text-[9px] font-bold text-slate-200">
+                      <p className="text-[11.5px] uppercase text-on-surface-variant font-bold">CPU Governor</p>
+                      <p className="font-mono text-[12.5px] font-bold text-slate-200">
                         {active ? "performance" : "schedutil"}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 rounded border border-white/5 bg-black/20 p-2">
-                    <Activity size={12} className="text-pink-accent" />
+                    <Activity size={14} className="text-pink-accent" />
                     <div>
-                      <p className="text-[8px] uppercase text-on-surface-variant">Scheduler</p>
-                      <p className="font-mono text-[9px] font-bold text-slate-200">
+                      <p className="text-[11.5px] uppercase text-on-surface-variant font-bold">Scheduler</p>
+                      <p className="font-mono text-[12.5px] font-bold text-slate-200">
                         {active ? "GameMode" : "Default"}
                       </p>
                     </div>
@@ -137,16 +137,16 @@ export default function GameModePage({ fullscreen = false }: { fullscreen?: bool
 
                 {/* MangoHud integration card */}
                 <div className="border-t border-white/5 pt-3 mt-2">
-                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-300 mb-1.5">
+                  <div className="flex items-center justify-between text-[11.5px] font-bold text-slate-300 mb-1.5">
                     <span className="flex items-center gap-1.5">
-                      <HelpCircle size={12} className="text-cyan-accent" />
+                      <HelpCircle size={13} className="text-cyan-accent" />
                       Theo dõi hiệu năng (MangoHud)
                     </span>
                   </div>
 
                   {/* Onboarding block */}
                   {!dismissedOnboarding && (
-                    <div className="relative mb-2.5 rounded-lg border border-cyan-accent/20 bg-cyan-accent/5 p-2.5 text-[9px] text-on-surface-variant leading-relaxed">
+                    <div className="relative mb-2.5 rounded-lg border border-cyan-accent/20 bg-cyan-accent/5 p-2.5 text-[12.5px] text-on-surface-variant leading-relaxed">
                       <button 
                         onClick={() => {
                           localStorage.setItem("purrdora_mangohud_onboarding_dismissed", "true");
@@ -160,7 +160,7 @@ export default function GameModePage({ fullscreen = false }: { fullscreen?: bool
                       <p className="pr-3">
                         Để hiển thị chỉ số FPS trong trò chơi, vui lòng cài đặt MangoHud và bổ sung tham số sau vào mục Tùy chọn Khởi chạy (Launch Options) trên Steam (hoặc thiết lập tương tự trên Lutris/Heroic):
                       </p>
-                      <code className="mt-1 block bg-black/40 px-1.5 py-0.5 rounded text-cyan-accent font-mono text-[8px]">
+                      <code className="mt-1 block bg-black/40 px-1.5 py-0.5 rounded text-cyan-accent font-mono text-[12px]">
                         MANGOHUD=1 %command%
                       </code>
                     </div>
@@ -168,36 +168,36 @@ export default function GameModePage({ fullscreen = false }: { fullscreen?: bool
 
                   {/* MangoHud Installation Status check */}
                   {loadingMango ? (
-                    <p className="text-[9px] text-slate-500 italic">Đang kiểm tra MangoHud...</p>
+                    <p className="text-[12px] text-slate-400 italic">Đang kiểm tra MangoHud...</p>
                   ) : !isMangoInstalled ? (
-                    <div className="rounded-lg border border-pink-accent/20 bg-pink-accent/5 p-2 text-[9px] text-on-surface-variant">
+                    <div className="rounded-lg border border-pink-accent/20 bg-pink-accent/5 p-2.5 text-[12.5px] text-on-surface-variant">
                       <p className="font-bold text-pink-accent mb-0.5">⚠️ CHƯA CÀI ĐẶT MANGOHUD</p>
                       <p>Vui lòng cài đặt MangoHud để theo dõi chỉ số FPS trong trò chơi:</p>
-                      <code className="mt-1 block bg-black/40 px-1.5 py-0.5 rounded text-pink-accent font-mono text-[8px]">
+                      <code className="mt-1 block bg-black/40 px-1.5 py-0.5 rounded text-pink-accent font-mono text-[12px]">
                         sudo dnf install mangohud
                       </code>
                     </div>
                   ) : !isMangoConfigured ? (
-                    <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-2 text-[9px] text-on-surface-variant">
+                    <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-2.5 text-[12.5px] text-on-surface-variant">
                       <p className="font-bold text-yellow-400 mb-0.5">⚙️ CHƯA THIẾT LẬP GHI NHẬT KÝ</p>
                       <p className="mb-1.5">Purrdora cần thiết lập thư mục nhật ký để thu thập chỉ số FPS trong trò chơi.</p>
                       <button
                         onClick={handleConfigureMango}
-                        className="px-2.5 py-1 bg-yellow-500/10 border border-yellow-500/30 hover:bg-yellow-500/20 text-yellow-400 text-[8px] font-bold rounded transition-colors uppercase tracking-wider"
+                        className="px-2.5 py-1 bg-yellow-500/10 border border-yellow-500/30 hover:bg-yellow-500/20 text-yellow-400 text-[11.5px] font-bold rounded transition-colors uppercase tracking-wider"
                       >
                         Thiết lập thư mục nhật ký
                       </button>
                     </div>
                   ) : (
-                    <div className="rounded-lg border border-emerald-500/10 bg-emerald-500/5 p-2 text-[9px] flex items-center justify-between">
+                    <div className="rounded-lg border border-emerald-500/10 bg-emerald-500/5 p-2.5 text-[12.5px] flex items-center justify-between">
                       <div>
                         <p className="font-bold text-emerald-400">✅ MANGOHUD SẴN SÀNG</p>
-                        <p className="text-[8px] text-slate-500">Đã kích hoạt ghi nhật ký tự động</p>
+                        <p className="text-[11.5px] text-slate-400">Đã kích hoạt ghi nhật ký tự động</p>
                       </div>
-                      <div className="flex h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <div className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                     </div>
                   )}
-                  {mangoError && <p className="rounded border border-red-500/15 bg-red-500/5 px-2 py-1.5 text-[8px] text-red-400">{mangoError}</p>}
+                  {mangoError && <p className="rounded border border-red-500/15 bg-red-500/5 px-2 py-1.5 text-[12px] text-red-400">{mangoError}</p>}
                 </div>
               </div>
             </WidgetFactory>
@@ -209,24 +209,24 @@ export default function GameModePage({ fullscreen = false }: { fullscreen?: bool
             <GameStatusWidget />
 
             {/* Session History Widget */}
-            <WidgetFactory title="SESSION HISTORY" icon={<History size={14} />} accentColor="text-pink-accent">
-              <div className="game-session-history flex flex-col gap-2 max-h-[220px] overflow-y-auto custom-scrollbar pr-1 py-1">
+            <WidgetFactory title="SESSION HISTORY" icon={<History size={15} />} accentColor="text-pink-accent">
+              <div className="game-session-history flex flex-col gap-2 max-h-[240px] overflow-y-auto custom-scrollbar pr-1 py-1">
                 {sessions.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 italic py-2">Chưa ghi nhận phiên chơi nào.</p>
+                  <p className="text-[13px] text-slate-400 italic py-2">Chưa ghi nhận phiên chơi nào.</p>
                 ) : (
                   sessions.slice(0, 6).map((session, index) => (
-                    <div key={index} className="flex justify-between items-center rounded border border-white/5 bg-black/20 p-2 text-[10px] hover:border-white/10 transition-colors">
+                    <div key={index} className="flex justify-between items-center rounded border border-white/5 bg-black/20 p-2 text-[13px] hover:border-white/10 transition-colors">
                       <div className="min-w-0 pr-2">
-                        <p className="font-bold truncate text-slate-300" title={session.filename}>
+                        <p className="font-bold truncate text-slate-200 text-[11.5px]" title={session.filename}>
                           {session.filename.split('_')[0] || "Game"}
                         </p>
-                        <p className="text-[8px] text-slate-500 font-mono mt-0.5">{formatTime(session.start_time_ms)}</p>
+                        <p className="text-[11.5px] text-slate-400 font-mono mt-0.5">{formatTime(session.start_time_ms)}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="font-mono text-cyan-accent font-bold text-[11px]">
+                        <span className="font-mono text-cyan-accent font-bold text-[14px]">
                           {session.average_fps != null ? `${session.average_fps.toFixed(0)}` : "—"}
                         </span>
-                        <span className="text-[8px] text-slate-500 ml-0.5">FPS</span>
+                        <span className="text-[11.5px] text-slate-400 ml-0.5 font-bold">FPS</span>
                       </div>
                     </div>
                   ))

@@ -4,8 +4,10 @@
 //! Game: turbo shift, advanced fan, boost on, performance power, notifications
 //! off and telemetry every 5s. If Steam exists, an optional Proton env template
 //! is created; the user still controls Steam launch options.
-//! Silent: eco shift, silent fan, boost off, power-saver, 80% battery limit and
-//! notifications off. Hardware/system steps are best-effort and become warnings.
+//! Eco: eco shift, auto fan (EC-managed cooling), boost off, power-saver,
+//! 80% battery health limit and notifications off. Optimized for battery
+//! longevity and energy efficiency — fan stays on auto to prevent thermal
+//! throttling instead of forcing silent mode.
 
 use serde::Serialize;
 use std::{fs, path::PathBuf};
@@ -75,9 +77,9 @@ pub async fn set_operating_mode(
             5,
             Some(false),
         ),
-        "silent" => (
+        "eco" => (
             "eco",
-            "silent",
+            "auto",
             false,
             optimizer::PowerProfile::PowerSaver,
             true,

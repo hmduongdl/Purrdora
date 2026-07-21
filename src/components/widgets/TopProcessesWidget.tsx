@@ -19,11 +19,11 @@ export function TopProcessesWidget() {
             const largestUsage = processes[0]?.mem_percent || 1;
             const barWidth = Math.min(100, (mem_percent / largestUsage) * 100);
             return (
-              <div key={`${name}-${pid}`} className="flex items-center justify-between text-[10px]">
+              <div key={`${name}-${pid}`} className="flex items-center justify-between text-[12px]">
                 <span className="flex w-32 min-w-0 items-center gap-1.5 font-medium">
                   <span className="truncate">{name}</span>
                   {process_count > 1 && (
-                    <span className="flex-none rounded bg-primary/10 px-1 text-[10px] text-primary">
+                    <span className="flex-none rounded bg-primary/10 px-1 text-[12px] text-primary">
                       ×{process_count}
                     </span>
                   )}

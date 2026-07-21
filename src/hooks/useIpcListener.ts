@@ -27,7 +27,7 @@ function decodeIpcPayload<T>(payload: T | ByteStreamPayload): T {
   return payload as T;
 }
 
-export type ActivePage = "dashboard" | "game" | "msi";
+export type ActivePage = "dashboard" | "game" | "msi" | "drivers" | "settings";
 
 const AUDIO_CACHE_TTL_MS = 10_000;
 const MEDIA_CACHE_TTL_MS = 120_000;

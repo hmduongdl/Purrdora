@@ -5,7 +5,8 @@ polkit.addRule(function(action, subject) {
         "com.purrdora.setwebcam", "com.purrdora.setwinkey",
         "com.purrdora.setfnkey", "com.purrdora.setkbdbacklight",
         "com.purrdora.setbatterylimit", "com.purrdora.setpowerprofile",
-        "com.purrdora.dropcaches", "com.purrdora.cleandiskcache"
+        "com.purrdora.dropcaches", "com.purrdora.cleandiskcache",
+        "com.purrdora.smartctl"
     ];
     if (allowed.indexOf(action.id) !== -1 &&
         subject.local && subject.active) {

@@ -23,6 +23,25 @@
           "args": true
         },
         {
+          "name": "fwupdmgr",
+          "cmd": "fwupdmgr",
+          "args": true
+        },
+        {
+          "name": "pkexec-fwupdmgr",
+          "cmd": "pkexec",
+          "args": [
+            {
+              "validator": "\\S+"
+            }
+          ]
+        },
+        {
+          "name": "which",
+          "cmd": "which",
+          "args": true
+        },
+        {
           "name": "xdg-open",
           "cmd": "xdg-open",
           "args": true
@@ -50,6 +69,25 @@
         {
           "name": "journalctl",
           "cmd": "journalctl",
+          "args": true
+        },
+        {
+          "name": "fwupdmgr",
+          "cmd": "fwupdmgr",
+          "args": true
+        },
+        {
+          "name": "pkexec-fwupdmgr",
+          "cmd": "pkexec",
+          "args": [
+            {
+              "validator": "\\S+"
+            }
+          ]
+        },
+        {
+          "name": "which",
+          "cmd": "which",
           "args": true
         },
         {

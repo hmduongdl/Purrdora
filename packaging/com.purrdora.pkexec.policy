@@ -151,4 +151,16 @@
     <annotate key="org.freedesktop.policykit.exec.argv1">clean-disk-cache</annotate>
   </action>
 
+  <action id="com.purrdora.smartctl">
+    <description>Read SMART disk health data</description>
+    <message>Authentication is required to read SMART disk health data.</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/purrdora-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">smart</annotate>
+  </action>
+
 </policyconfig>

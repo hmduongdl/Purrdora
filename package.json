@@ -11,7 +11,8 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev --no-watch",
     "tauri:dev:watch": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "setup:dev": "bash scripts/install-dev-env.sh"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",

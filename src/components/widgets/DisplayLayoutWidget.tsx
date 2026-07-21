@@ -20,7 +20,7 @@ const modeLabel: Record<string, string> = {
 };
 
 function DisplayMap({ displays }: { displays: DisplayInfo[] }) {
-  if (!displays.length) return <p className="text-[10px] text-on-surface-variant">Không nhận được cấu hình màn hình.</p>;
+  if (!displays.length) return <p className="text-[12px] text-on-surface-variant">Không nhận được cấu hình màn hình.</p>;
   const minX = Math.min(...displays.map((display) => display.x));
   const minY = Math.min(...displays.map((display) => display.y));
   const maxX = Math.max(...displays.map((display) => display.x + display.width));
@@ -84,29 +84,29 @@ export const DisplayLayoutWidget = memo(function DisplayLayoutWidget() {
     <div className="display-layout-content flex flex-col gap-2.5">
       <div className="display-layout-summary flex items-start justify-between gap-2">
         <div>
-          <p className="big-number text-xl leading-none text-cyan-accent">{state ? displays.length : "—"}</p>
-          <p className="mt-1 text-[9px] uppercase tracking-wider text-on-surface-variant">màn hình đang hoạt động</p>
+          <p className="big-number text-[22px] leading-none text-cyan-accent">{state ? displays.length : "—"}</p>
+          <p className="mt-1 text-[11px] uppercase tracking-wider text-on-surface-variant">màn hình đang hoạt động</p>
         </div>
-        <div className={`rounded-full border px-2 py-1 text-[9px] font-bold ${state?.laptop_display_active ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-white/10 bg-white/5 text-slate-400"}`}>
+        <div className={`rounded-full border px-2 py-1 text-[11px] font-bold ${state?.laptop_display_active ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-white/10 bg-white/5 text-slate-400"}`}>
           <Laptop size={11} className="mr-1 inline-block align-[-2px]" />
           Laptop {state?.laptop_display_active ? "đang bật" : "đang tắt"}
         </div>
       </div>
       {state && <>
         <DisplayMap displays={displays} />
-        <div className="display-layout-meta flex items-center justify-between gap-2 text-[9px] text-on-surface-variant">
+        <div className="display-layout-meta flex items-center justify-between gap-2 text-[11px] text-on-surface-variant">
           <span>Chế độ: <strong className="text-slate-200">{modeLabel[state.mode] ?? state.mode}</strong></span>
           <span className="font-mono">tọa độ thực</span>
         </div>
         <div className="display-layout-list space-y-1">
-          {displays.map((display, index) => <div key={display.id} className="display-layout-row flex items-center justify-between gap-2 rounded-md bg-black/20 px-2 py-1 text-[9px]">
+          {displays.map((display, index) => <div key={display.id} className="display-layout-row flex items-center justify-between gap-2 rounded-md bg-black/20 px-2 py-1 text-[11px]">
             <span className="min-w-0 truncate text-slate-300">{index + 1}. {display.name}{display.is_primary ? " · chính" : ""}</span>
             <span className="shrink-0 font-mono text-slate-500">{display.width}×{display.height}</span>
           </div>)}
         </div>
       </>}
-      {error && <p className="rounded bg-red-400/10 px-2 py-1 text-[9px] text-red-300">{error}</p>}
-      <button type="button" onClick={() => void openSettings()} disabled={opening} className="display-layout-settings flex h-8 items-center justify-center gap-1.5 rounded-lg border border-cyan-accent/25 bg-cyan-accent/10 text-[9px] font-bold uppercase tracking-wider text-cyan-accent hover:bg-cyan-accent/15 disabled:opacity-50">
+      {error && <p className="rounded bg-red-400/10 px-2 py-1 text-[11px] text-red-300">{error}</p>}
+      <button type="button" onClick={() => void openSettings()} disabled={opening} className="display-layout-settings flex h-8 items-center justify-center gap-1.5 rounded-lg border border-cyan-accent/25 bg-cyan-accent/10 text-[11px] font-bold uppercase tracking-wider text-cyan-accent hover:bg-cyan-accent/15 disabled:opacity-50">
         {opening ? <LoaderCircle size={12} className="animate-spin" /> : <Settings2 size={12} />}
         Cài Đặt Màn Hình
       </button>

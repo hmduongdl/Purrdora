@@ -32,6 +32,12 @@ Purrdora tích hợp trình điều khiển MSI Embedded Controller (msi-ec) man
 *   **PipeWire Audio Mixer:** Hỗ trợ thanh kéo điều chỉnh âm lượng riêng biệt cho từng cổng ra âm thanh và bật/tắt tiếng (Mute).
 *   **Trình phát đa phương tiện (MPRIS):** Hiển thị bài nhạc đang phát (tên bài, nghệ sĩ, ảnh bìa album) và điều khiển phát nhạc từ bất kỳ trình phát nào tương thích với chuẩn MPRIS (Spotify, Firefox, Chrome, VLC, v.v.).
 
+### 5. Quản Lý Driver & Firmware (Hardware Health)
+*   **Quét thiết bị thiếu driver:** Tự động phát hiện các thiết bị PCI/USB chưa được kernel bind driver thông qua sysfs (`/sys/bus/pci/devices/`, `/sys/bus/usb/devices/`), hiển thị tên vendor/device từ cơ sở dữ liệu pci.ids và usb.ids bundle sẵn.
+*   **Phát hiện thiếu firmware blob:** Quét nhật ký kernel (`journalctl -k`) để phát hiện các module đã load nhưng thiếu file firmware (pattern: "Direct firmware load for ... failed with error -2").
+*   **Cập nhật firmware qua LVFS:** Tích hợp `fwupdmgr` để kiểm tra và cài đặt bản cập nhật firmware cho BIOS, SSD, touchpad và các thiết bị được LVFS hỗ trợ. Cache kết quả 5 phút để tránh gọi subprocess liên tục.
+*   **Khuyến nghị cài đặt driver cross-distro:** Dựa trên vendor/device ID và distro family (Fedora, Debian/Ubuntu, Arch, openSUSE), gợi ý tên gói cần cài đặt cho NVIDIA GPU, Intel/Realtek/Broadcom/MediaTek WiFi, AMD GPU, và Realtek Ethernet.
+
 ---
 
 ## 🛡️ Thiết Kế Bảo Mật & Quyền Nâng Cao
@@ -49,6 +55,7 @@ Purrdora tích hợp trình điều khiển MSI Embedded Controller (msi-ec) man
 *   **Hệ điều hành:** Fedora Linux 40+ (Workstation)
 *   **Hệ thống âm thanh:** PipeWire (ứng dụng điều khiển thông qua `wpctl`)
 *   **D-Bus:** Dịch vụ UPower PowerProfiles để điều khiển chế độ pin.
+*   **Firmware:** `fwupd` và `fwupdmgr` để cập nhật firmware thiết bị qua LVFS.
 *   **Gói phụ trợ chơi game (Tùy chọn):**
     *   `gamemode`: `sudo dnf install gamemode`
     *   `mangohud`: `sudo dnf install mangohud`
@@ -64,31 +71,33 @@ Yêu cầu đã cài đặt các công cụ sau trên máy:
 *   **Rust** >= 1.77
 *   **Tauri CLI** >= 2.x
 
-### 2. Cài đặt các gói phụ thuộc và chạy chế độ dev
+### 2. Cài đặt các gói phụ thuộc
 ```bash
-# Cài đặt thư viện npm
 pnpm install
+```
 
-# Chạy ứng dụng dưới chế độ kiểm thử (Development)
+### 3. Thiết lập môi trường đặc quyền (chạy 1 lần duy nhất)
+Cài đặt helper binary `purrdora-helper`, polkit policy và udev rules để các tính năng privileged (quạt, pin, SMART, dọn RAM) hoạt động không cần mật khẩu trong môi trường dev:
+```bash
+bash scripts/install-dev-env.sh
+```
+
+> [!NOTE]
+> Script sẽ yêu cầu sudo để sao chép file vào các thư mục hệ thống:
+> - `/usr/libexec/purrdora-helper` — helper binary
+> - `/usr/share/polkit-1/actions/com.purrdora.pkexec.policy` — khai báo hành động Polkit
+> - `/etc/polkit-1/rules.d/99-purrdora.rules` — quy tắc Polkit passwordless
+> - `/etc/udev/rules.d/99-purrdora.rules` — quy tắc udev cho MSI EC
+
+### 4. Chạy ứng dụng dưới chế độ dev
+```bash
 pnpm tauri:dev
 ```
 
-### 3. Biên dịch và cấu hình đặc quyền hệ thống
-Để kích hoạt đầy đủ các tính năng điều chỉnh phần cứng (quạt, pin, chế độ hiệu năng) hoạt động passwordless thông qua Polkit, hãy biên dịch ứng dụng và cài đặt helper:
-
+### 5. Biên dịch phiên bản Release (để đóng gói)
 ```bash
-# Biên dịch phiên bản Release
 pnpm tauri:build
-
-# Cài đặt helper nhị phân và thiết lập các quy tắc chính sách Polkit
-sudo ./packaging/install.sh
 ```
-
-> [!IMPORTANT]
-> Script cài đặt `install.sh` sẽ thực hiện các bước sau:
-> 1. Sao chép file nhị phân trợ lý `purrdora-helper` vào `/usr/libexec/purrdora-helper`.
-> 2. Đăng ký hành động Polkit tại `/usr/share/polkit-1/actions/com.purrdora.pkexec.policy`.
-> 3. Tạo quy tắc Polkit tại `/etc/polkit-1/rules.d/99-purrdora.rules` để cấp quyền chạy passwordless cho các hành động của Purrdora từ phiên đăng nhập cục bộ đang hoạt động.
 
 ---
 
@@ -110,20 +119,39 @@ Sơ đồ cấu trúc thư mục quan trọng trên Purrdora:
 │   ├── App.tsx                      # Giao diện chính của ứng dụng
 │   ├── main.tsx                     # Điểm khởi chạy React
 │   ├── index.css                    # Tệp định nghĩa kiểu Tailwind toàn cục
-│   └── components/
-│       ├── Layout.tsx               # Khung cửa sổ tuỳ chỉnh
-│       ├── BottomDock.tsx           # Thanh dock điều hướng phía dưới
-│       ├── MsiCenterPage.tsx        # Trang điều khiển phần cứng MSI Center
-│       ├── GameModePage.tsx         # Trang quản lý GameMode & MangoHud
-│       └── widgets/                 # Các khối widget hiển thị chỉ số chi tiết
+│   ├── components/
+│   │   ├── Layout.tsx               # Khung cửa sổ tuỳ chỉnh
+│   │   ├── BottomDock.tsx           # Thanh dock điều hướng phía dưới
+│   │   ├── MsiCenterPage.tsx        # Trang điều khiển phần cứng MSI Center
+│   │   ├── GameModePage.tsx         # Trang quản lý GameMode & MangoHud
+│   │   ├── DriversPage.tsx          # Trang quản lý Driver & Firmware
+│   │   └── widgets/                 # Các khối widget hiển thị chỉ số chi tiết
+│   │       ├── HardwareHealthWidget.tsx  # Widget sức khỏe phần cứng tổng quan
+│   │       ├── OrphanDeviceList.tsx      # Danh sách thiết bị thiếu driver
+│   │       └── FirmwareUpdateList.tsx    # Danh sách cập nhật firmware LVFS
+│   ├── hooks/
+│   │   └── useIpcListener.ts
+│   ├── store/
+│   │   └── useSystemStore.ts
+│   └── types/
+│       └── schema.d.ts
 └── src-tauri/                       # Backend (Tauri + Rust)
     ├── src/
     │   ├── main.rs                  # Điểm khởi chạy ứng dụng Tauri
-    │   ├── lib.rs                   # Đăng ký lệnh IPC
+    │   ├── lib.rs                   # Đăng ký lệnh IPC & module
     │   ├── monitor.rs               # Xử lý telemetry hệ thống (CPU/GPU/RAM/Network)
     │   ├── msi_ec.rs                # Giao tiếp với nhân driver msi-ec
     │   ├── helper.rs                # Mã nguồn tiến trình đặc quyền helper
-    │   └── privileged.rs            # Giao tiếp nâng quyền với helper qua pkexec
+    │   ├── privileged.rs            # Giao tiếp nâng quyền với helper qua pkexec
+    │   ├── driver_scan.rs           # Quét thiết bị thiếu driver (PCI/USB) & firmware blob
+    │   ├── pci_ids.rs               # Parser cơ sở dữ liệu pci.ids / usb.ids
+    │   ├── firmware.rs              # Tích hợp fwupd/LVFS cập nhật firmware
+    │   └── driver_recommend.rs      # Khuyến nghị gói driver theo distro family
+    ├── resources/
+    │   ├── pci.ids                  # Cơ sở dữ liệu PCI ID bundle sẵn
+    │   └── usb.ids                  # Cơ sở dữ liệu USB ID bundle sẵn
+    └── capabilities/
+        └── default.json
 ```
 
 ---

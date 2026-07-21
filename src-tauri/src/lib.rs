@@ -59,6 +59,14 @@ pub fn run() {
             mangohud::configure_mangohud,
             mangohud::enable_mangohud_for_launch,
             mangohud::list_recent_game_sessions,
+            driver_scan::scan_orphan_devices,
+            driver_scan::scan_full_hardware_devices,
+            driver_scan::scan_physical_disks,
+            driver_scan::get_disk_smart_health,
+            driver_recommend::get_driver_recommendation,
+            driver_scan::scan_missing_firmware,
+            firmware::check_firmware_updates,
+            firmware::install_firmware_updates,
         ])
         .setup(|app| {
             let ipc = IpcEmitter::start(app.handle().clone());
@@ -74,6 +82,10 @@ pub fn run() {
             app.manage(ipc);
             app.manage(telemetry);
             app.manage(optimizer::KeepAwakeState::new());
+
+            // Pre-load the PCI/USB hardware ID database on a background
+            // thread so the first driver scan doesn't block the UI.
+            std::thread::spawn(pci_ids::init);
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -138,6 +150,9 @@ mod audio;
 mod bluetooth;
 mod connectivity;
 mod display;
+mod driver_recommend;
+mod driver_scan;
+mod firmware;
 mod ipc;
 mod input;
 mod mangohud;
@@ -145,6 +160,7 @@ mod monitor;
 mod msi_ec;
 mod operating_mode;
 mod optimizer;
+mod pci_ids;
 mod privileged;
 
 use ipc::IpcEmitter;

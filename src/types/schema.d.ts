@@ -298,3 +298,97 @@ export interface GameSession {
   start_time_ms: number;
   average_fps: number | null;
 }
+
+/** ── Hardware Health & Firmware ── */
+
+export interface OrphanDevice {
+  bus: string;
+  vendor_id: string;
+  device_id: string;
+  class_id?: string | null;
+  vendor_name?: string | null;
+  device_name?: string | null;
+  subsystem_vendor?: string | null;
+  subsystem_device?: string | null;
+  kernel_driver_hint?: string | null;
+}
+
+export interface MissingFirmware {
+  firmware_path: string;
+  kernel_module?: string | null;
+  timestamp: number;
+}
+
+export interface FwupdDevice {
+  name: string;
+  device_id: string;
+  current_version: string;
+  update_version?: string | null;
+  update_description?: string | null;
+  update_urgent: boolean;
+  vendor: string;
+}
+
+export interface FwupdStatus {
+  available: boolean;
+  daemon_running: boolean;
+  devices: FwupdDevice[];
+  update_count: number;
+}
+
+export interface DriverRecommendation {
+  deviceName: string;
+  packages: string[];
+  installCommand: string;
+  description: string;
+  distroName: string;
+}
+
+export interface FullHardwareDevice {
+  id: string;
+  category: "Bộ xử lý & Chipset" | "Lưu trữ" | "Mạng & Kết nối" | "Đồ họa" | "Nguồn điện & Pin" | string;
+  type_name: string;
+  name: string;
+  vendor: string;
+  driver: string;
+  version: string;
+  pci_id?: string | null;
+  status: string;
+  status_text: string;
+  details?: string | null;
+}
+
+export interface PartitionInfo {
+  name: string;
+  mountpoint?: string | null;
+  fstype?: string | null;
+  size_bytes: number;
+  size_gb: number;
+}
+
+export interface PhysicalDiskInfo {
+  name: string;
+  dev_path: string;
+  model: string;
+  tran?: string | null;
+  is_ssd: boolean;
+  total_bytes: number;
+  total_gb: number;
+  total_tb: number;
+  partitions: PartitionInfo[];
+}
+
+export interface SmartHealthData {
+  installed: boolean;
+  supported: boolean;
+  passed: boolean;
+  wear_level_percent?: number | null;
+  temperature_c?: number | null;
+  power_on_hours?: number | null;
+  power_cycles?: number | null;
+  model_name?: string | null;
+  serial_number?: string | null;
+  firmware_version?: string | null;
+  error_msg?: string | null;
+}
+

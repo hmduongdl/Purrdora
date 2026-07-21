@@ -13,6 +13,8 @@ import {
   Minimize2,
   Settings2,
   Wifi,
+  Cpu,
+  Cog,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -23,6 +25,8 @@ const NAV_BUTTONS = [
   { icon: Home,       label: "Home",       page: "dashboard" as const },
   { icon: Settings2,  label: "MSI Center", page: "msi" as const },
   { icon: Gamepad2,   label: "Game Mode",  page: "game" as const },
+  { icon: Cpu,        label: "Drivers",    page: "drivers" as const },
+  { icon: Cog,        label: "Settings",   page: "settings" as const },
 ];
 
 function BatteryIcon({ percent, charging }: { percent: number; charging: boolean }) {
@@ -37,8 +41,8 @@ export function BottomDock({
   onNavigate,
   compact = false,
 }: {
-  activePage: "dashboard" | "game" | "msi";
-  onNavigate: (page: "dashboard" | "game" | "msi") => void;
+  activePage: "dashboard" | "game" | "msi" | "drivers" | "settings";
+  onNavigate: (page: "dashboard" | "game" | "msi" | "drivers" | "settings") => void;
   compact?: boolean;
 }) {
   const latency = useSystemStore(
@@ -104,13 +108,22 @@ export function BottomDock({
 
   useEffect(() => {
     let cancelled = false;
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 5_000);
     const vietnamTimeZone = ["Asia/Ho_Chi_Minh", "Asia/Saigon"].includes(
       Intl.DateTimeFormat().resolvedOptions().timeZone,
     );
 
     const loadNetwork = async () => {
+      // Start local IP immediately — no network dependency
+      try {
+        const ip = await invoke<string | null>("get_local_ip");
+        if (!cancelled) setNetwork({ ip: ip ?? "—", isVietnam: vietnamTimeZone });
+      } catch {
+        // Keep neutral placeholder.
+      }
+
+      // Race public IP in parallel — on success it upgrades the display
+      const controller = new AbortController();
+      const race = window.setTimeout(() => controller.abort(), 3_000);
       try {
         const response = await fetch("https://ipwho.is/", { signal: controller.signal });
         const data = await response.json() as { success?: boolean; ip?: string; country_code?: string };
@@ -119,26 +132,16 @@ export function BottomDock({
             ip: data.ip,
             isVietnam: data.country_code?.toUpperCase() === "VN" || vietnamTimeZone,
           });
-          return;
         }
       } catch {
-        // Public IP lookup is optional; use the active local interface below.
-      }
-
-      try {
-        const ip = await invoke<string | null>("get_local_ip");
-        if (!cancelled) setNetwork({ ip: ip ?? "—", isVietnam: vietnamTimeZone });
-      } catch {
-        // Keep the neutral placeholder when there is no active network.
+        // Public IP is optional — local IP is already displayed.
+      } finally {
+        window.clearTimeout(race);
       }
     };
 
     void loadNetwork();
-    return () => {
-      cancelled = true;
-      controller.abort();
-      window.clearTimeout(timeout);
-    };
+    return () => { cancelled = true; };
   }, []);
 
   const vietnamDate = new Intl.DateTimeFormat("vi-VN", {
@@ -191,7 +194,11 @@ export function BottomDock({
                     ? "border border-pink-accent/50 bg-pink-accent/10 text-pink-accent"
                     : page === "game"
                       ? "border border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
-                      : "border border-primary/30 bg-primary/10 text-primary"
+                      : page === "drivers"
+                        ? "border border-amber-400/50 bg-amber-400/10 text-amber-400"
+                        : page === "settings"
+                          ? "border border-violet-400/50 bg-violet-400/10 text-violet-400"
+                          : "border border-primary/30 bg-primary/10 text-primary"
                   : "text-on-surface-variant hover:bg-white/5"
               }`}
             >

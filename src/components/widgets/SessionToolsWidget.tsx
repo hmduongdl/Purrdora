@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { BatteryCharging, BellOff, Bluetooth, BriefcaseBusiness, CameraOff, ChevronDown, Coffee, Gamepad2, Gauge, LoaderCircle, LockKeyhole, Moon, MouseOff, Plane, Power, RotateCcw, Settings, Shuffle, Timer, VolumeX, Wifi, Zap } from "lucide-react";
+import { BatteryCharging, BellOff, Bluetooth, BriefcaseBusiness, CameraOff, ChevronDown, Coffee, Gamepad2, Gauge, Leaf, LoaderCircle, LockKeyhole, Moon, MouseOff, Plane, Power, RotateCcw, Settings, Shuffle, Timer, Wifi, Zap } from "lucide-react";
 import { useSystemStore } from "../../store/useSystemStore";
 import { LiveSessionTime } from "../LiveSessionTime";
 import { WidgetFactory } from "./factory";
@@ -167,8 +167,8 @@ export function SessionToolsWidget() {
   const modeDisplay = {
     work: { label: "WORK", icon: BriefcaseBusiness, color: "text-cyan-300" },
     game: { label: "GAME", icon: Gamepad2, color: "text-emerald-400" },
-    silent: { label: "SILENT", icon: VolumeX, color: "text-violet-300" },
-  }[operatingMode];
+    eco: { label: "ECO", icon: Leaf, color: "text-emerald-300" },
+  }[operatingMode] ?? { label: "WORK", icon: BriefcaseBusiness, color: "text-cyan-300" };
   const ModeIcon = modeDisplay.icon;
 
   const handlePowerAction = async (action: "poweroff" | "reboot" | "suspend" | "lock") => {
@@ -321,7 +321,7 @@ export function SessionToolsWidget() {
             <div className={`flex min-w-[86px] items-center gap-2 rounded-lg border border-white/10 bg-black/25 px-3 py-1.5 ${modeDisplay.color}`} title={`Chế độ máy: ${modeDisplay.label}`}>
               <ModeIcon size={14} />
               <div>
-                <p className="text-[8px] uppercase text-slate-500">Chế độ máy</p>
+                <p className="text-[10px] uppercase text-slate-500">Chế độ máy</p>
                 <p className="text-[10px] font-bold leading-tight">{modeDisplay.label}</p>
               </div>
             </div>
@@ -437,7 +437,7 @@ export function SessionToolsWidget() {
             <BellOff size={15} />
             <div>
               <p className="text-[10px] font-bold">Không làm phiền</p>
-              <p className="text-[8px] text-on-surface-variant">Ẩn tất cả thông báo hệ thống</p>
+              <p className="text-[10px] text-on-surface-variant">Ẩn tất cả thông báo hệ thống</p>
             </div>
           </button>
           <button
@@ -451,9 +451,10 @@ export function SessionToolsWidget() {
             <Coffee size={15} />
             <div>
               <p className="text-[10px] font-bold">Ngăn chế độ ngủ</p>
-              <p className="text-[8px] text-on-surface-variant">Giữ màn hình luôn bật</p>
+              <p className="text-[10px] text-on-surface-variant">Giữ màn hình luôn bật</p>
             </div>
           </button>
+
         </div>
 
         {/* Shutdown timer — pill buttons 1H/2H/4H/6H */}

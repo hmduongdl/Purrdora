@@ -20,6 +20,7 @@ const GameModePage = lazy(() => import("./components/GameModePage"));
 const MsiCenterPage = lazy(() =>
   import("./components/MsiCenterPage").then((module) => ({ default: module.MsiCenterPage })),
 );
+const DriversPage = lazy(() => import("./components/DriversPage"));
 
 function socialLinkIcon(icon: SocialLink["icon"]) {
   switch (icon) {
@@ -231,6 +232,14 @@ function App() {
         </Layout>
       ) : activeTab === "game" ? (
         <Suspense fallback={<PageLoadingFallback />}><GameModePage fullscreen={isFullscreen} /></Suspense>
+      ) : activeTab === "drivers" ? (
+        <Suspense fallback={<PageLoadingFallback />}><DriversPage fullscreen={isFullscreen} /></Suspense>
+      ) : activeTab === "settings" ? (
+        <Suspense fallback={<PageLoadingFallback />}>
+          <div className="flex h-screen w-full items-center justify-center bg-[#0a0a0f]">
+            <p className="text-sm text-slate-500">Settings page — coming soon</p>
+          </div>
+        </Suspense>
       ) : (
         <Suspense fallback={<PageLoadingFallback />}><MsiCenterPage fullscreen={isFullscreen} /></Suspense>
       )}

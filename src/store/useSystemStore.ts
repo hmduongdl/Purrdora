@@ -34,7 +34,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export const PERFORMANCE_HISTORY_LIMIT = 120;
-export type OperatingMode = "work" | "game" | "silent";
+export type OperatingMode = "work" | "game" | "eco";
 
 let systemControlInFlight: Promise<unknown> | null = null;
 let audioOutputInFlight: Promise<void> | null = null;

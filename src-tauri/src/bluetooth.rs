@@ -103,8 +103,10 @@ fn get_usb_devices() -> Vec<UsbDevice> {
             continue;
         };
         let device_class = read_trimmed(&path.join("bDeviceClass")).unwrap_or_default();
+        let config_val = read_trimmed(&path.join("bConfigurationValue")).unwrap_or_default();
         let product = read_trimmed(&path.join("product"));
         if device_class == "09"
+            || config_val == "0"
             || product
                 .as_deref()
                 .is_some_and(|name| name.to_ascii_lowercase().contains("hub"))

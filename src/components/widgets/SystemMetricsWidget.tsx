@@ -22,12 +22,12 @@ const StatTile = ({
   data: { v: number }[];
 }) => (
   <div className="rounded-lg border border-white/5 bg-black/20 p-[clamp(8px,1vh,12px)] flex flex-col justify-between min-w-0 min-h-0">
-    <p className="text-[clamp(8px,1vh,9px)] uppercase text-on-surface-variant leading-none">{label}</p>
+    <p className="text-[clamp(9px,1.15vh,10px)] uppercase text-on-surface-variant leading-none">{label}</p>
     <div className="mt-[clamp(2px,0.4vh,6px)] flex items-baseline gap-1 min-h-[1.2em] overflow-hidden">
-      <span className={`big-number ${color} leading-none`} style={{ fontSize: "clamp(1.1rem, 2.2vh, 1.5rem)" }}>
+      <span className={`big-number ${color} leading-none`} style={{ fontSize: "clamp(1.15rem, 2.3vh, 1.6rem)" }}>
         {value || "—"}
       </span>
-      <span className={`opacity-60 ${color} leading-none`} style={{ fontSize: "clamp(8px, 1.1vh, 10px)" }}>
+      <span className={`opacity-60 ${color} leading-none`} style={{ fontSize: "clamp(9px, 1.2vh, 11px)" }}>
         {unit}
       </span>
     </div>
@@ -61,12 +61,12 @@ const ProgressBar = ({
   extra?: string;
 }) => (
   <div>
-    <div className="flex justify-between text-[10px] font-bold">
+    <div className="flex justify-between text-[11px] font-bold">
       <span className={textColor}>{label}</span>
       <span>
         {value.toFixed(0)}%
         {extra && (
-          <span className="ml-1 text-[9px] font-normal text-on-surface-variant">
+          <span className="ml-1 text-[11px] font-normal text-on-surface-variant">
             {extra}
           </span>
         )}
@@ -159,14 +159,14 @@ export const SystemMetricsWidget = memo(function SystemMetricsWidget() {
               data={tempData}
             />
             <div className="pointer-events-none absolute left-0 top-full z-30 mt-2 hidden w-[min(320px,calc(100vw-2rem))] overflow-hidden rounded-lg border border-pink-accent/30 bg-[#12131c]/[.98] shadow-[0_12px_30px_rgba(0,0,0,.45)] group-hover:block group-focus:block">
-              <div className="border-b border-white/10 px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-pink-300">Nhiệt độ hệ thống</div>
+              <div className="border-b border-white/10 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-pink-300">Nhiệt độ hệ thống</div>
               <div className="max-h-52 overflow-y-auto p-1.5">
                 {temperatureSensors.length ? temperatureSensors.map((sensor, index) => (
-                  <div key={`${sensor.name}-${index}`} className="flex items-center justify-between gap-3 rounded px-1.5 py-1 text-[10px] hover:bg-white/5">
+                  <div key={`${sensor.name}-${index}`} className="flex items-center justify-between gap-3 rounded px-1.5 py-1 text-[11px] hover:bg-white/5">
                     <span className="min-w-0 truncate text-[#c5c5da]" title={sensor.name}>{sensor.name}</span>
                     <span className="shrink-0 font-mono text-pink-300">{sensor.temperature_celsius.toFixed(0)}°C</span>
                   </div>
-                )) : <p className="px-1.5 py-2 text-[10px] text-on-surface-variant">Không tìm thấy cảm biến nhiệt độ.</p>}
+                )) : <p className="px-1.5 py-2 text-[11px] text-on-surface-variant">Không tìm thấy cảm biến nhiệt độ.</p>}
               </div>
             </div>
           </div>
@@ -220,10 +220,10 @@ export const SystemMetricsWidget = memo(function SystemMetricsWidget() {
 
         <div className="border-t border-white/8 pt-[clamp(8px,1vh,12px)]">
           <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => void optimize("ram")} disabled={optimizationBusy !== null} className="flex items-center justify-center gap-1.5 rounded border border-white/10 bg-black/20 p-2 text-[9px] font-bold text-slate-400 transition-colors hover:border-cyan-accent/30 hover:text-cyan-accent disabled:cursor-wait disabled:opacity-50">
+            <button type="button" onClick={() => void optimize("ram")} disabled={optimizationBusy !== null} className="flex items-center justify-center gap-1.5 rounded border border-white/10 bg-black/20 p-2 text-[11px] font-bold text-slate-400 transition-colors hover:border-cyan-accent/30 hover:text-cyan-accent disabled:cursor-wait disabled:opacity-50">
               <Trash2 size={12} /> {optimizationBusy === "ram" ? "Đang xử lý…" : "Giải phóng RAM"}
             </button>
-            <button type="button" onClick={() => void optimize("disk")} disabled={optimizationBusy !== null} className="flex items-center justify-center gap-1.5 rounded border border-white/10 bg-black/20 p-2 text-[9px] font-bold text-slate-400 transition-colors hover:border-pink-accent/30 hover:text-pink-accent disabled:cursor-wait disabled:opacity-50">
+            <button type="button" onClick={() => void optimize("disk")} disabled={optimizationBusy !== null} className="flex items-center justify-center gap-1.5 rounded border border-white/10 bg-black/20 p-2 text-[11px] font-bold text-slate-400 transition-colors hover:border-pink-accent/30 hover:text-pink-accent disabled:cursor-wait disabled:opacity-50">
               <Shield size={12} /> {optimizationBusy === "disk" ? "Đang xử lý…" : "Dọn dẹp ổ đĩa"}
             </button>
           </div>
