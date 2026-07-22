@@ -162,11 +162,6 @@ export function HardwareHealthWidget() {
     return <Cpu className="text-[#C4B5FD]" size={14} />;
   };
 
-  const hasNoRecsCount = orphanDevices.filter((d) => {
-    const key = `${d.bus}-${d.vendor_id}-${d.device_id}`;
-    return !recommendations[key];
-  }).length;
-
   return (
     <div className="adaptive-card glass-panel flex flex-col p-3 gap-2.5 relative overflow-hidden">
       {/* Toast Notification */}
@@ -251,15 +246,6 @@ export function HardwareHealthWidget() {
                   </div>
                 ) : (
                   <div className="space-y-1.5">
-                    {/* Global summary hint if many devices lack auto-recommendations */}
-                    {hasNoRecsCount > 0 && (
-                      <div className="text-[12px] text-amber-400/90 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 mb-2">
-                        <span>
-                          <b>{hasNoRecsCount}/{orphanDevices.length}</b> thiết bị chưa có gói driver đề xuất — nhấn Search để tìm kiếm thủ công.
-                        </span>
-                      </div>
-                    )}
-
                     {/* DENSE ORPHAN DEVICE ROWS */}
                     {orphanDevices.map((dev) => {
                       const devKey = `${dev.bus}-${dev.vendor_id}-${dev.device_id}`;
@@ -311,7 +297,9 @@ export function HardwareHealthWidget() {
                             </div>
                           ) : (
                             <div className="flex items-center justify-between text-[12px] pt-1 border-t border-white/5">
-                              <span className="text-slate-400">Thiếu driver PCI/USB</span>
+                              <span className={dev.status === "safeToIgnore" ? "text-slate-500" : "text-slate-400"}>
+                                {dev.status === "safeToIgnore" ? "Không hỗ trợ trên Linux" : "Thiếu driver PCI/USB"}
+                              </span>
                               <a
                                 href={`https://linux-hardware.org/?id=${dev.vendor_id}:${dev.device_id}`}
                                 target="_blank"

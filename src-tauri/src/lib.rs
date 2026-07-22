@@ -159,6 +159,7 @@ mod monitor;
 mod msi_ec;
 mod operating_mode;
 mod optimizer;
+mod pci_classifier;
 mod pci_ids;
 mod privileged;
 

@@ -311,6 +311,8 @@ export interface OrphanDevice {
   subsystem_vendor?: string | null;
   subsystem_device?: string | null;
   kernel_driver_hint?: string | null;
+  /** Trạng thái phân loại: "safeToIgnore" | "missingDriver". */
+  status: string;
 }
 
 export interface MissingFirmware {
@@ -353,7 +355,7 @@ export interface FullHardwareDevice {
   driver: string;
   version: string;
   pci_id?: string | null;
-  status: string;
+  status: string; // "active" | "missing" | "ignored"
   status_text: string;
   details?: string | null;
 }

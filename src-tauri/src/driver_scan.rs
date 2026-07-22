@@ -3,6 +3,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+use crate::pci_classifier;
 use crate::pci_ids;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,6 +17,8 @@ pub struct OrphanDevice {
     pub subsystem_vendor: Option<String>,
     pub subsystem_device: Option<String>,
     pub kernel_driver_hint: Option<String>,
+    /// Trạng thái phân loại thiết bị thiếu driver.
+    pub status: String,
 }
 
 fn read_sysfs_hex(path: &Path, file: &str) -> Option<u16> {
@@ -92,6 +95,16 @@ fn scan_pci_orphans() -> Vec<OrphanDevice> {
         let kernel_driver_hint = read_sysfs_str(&path, "modalias")
             .and_then(|m| extract_modalias_hint(&m));
 
+        // Phân loại thiết bị PCI thiếu driver.
+        let device_status = {
+            let pci_id_str = format!("{vendor_id:04x}:{device_id:04x}");
+            let class_str = class_id.as_deref().unwrap_or("0000");
+            match pci_classifier::classify_device(&pci_id_str, class_str) {
+                pci_classifier::PciDeviceStatus::SafeToIgnore => "safeToIgnore".to_string(),
+                _ => "missingDriver".to_string(),
+            }
+        };
+
         orphans.push(OrphanDevice {
             bus: "pci".into(),
             vendor_id: format!("{vendor_id:04x}"),
@@ -102,6 +115,7 @@ fn scan_pci_orphans() -> Vec<OrphanDevice> {
             subsystem_vendor,
             subsystem_device,
             kernel_driver_hint,
+            status: device_status,
         });
     }
 
@@ -152,6 +166,7 @@ fn scan_usb_orphans() -> Vec<OrphanDevice> {
             subsystem_vendor: None,
             subsystem_device: None,
             kernel_driver_hint: None,
+            status: "missingDriver".to_string(), // USB không phân loại chi tiết, mặc định cảnh báo.
         });
     }
 
@@ -267,6 +282,22 @@ pub fn scan_full_hardware_devices() -> Vec<FullHardwareDevice> {
             let is_missing = driver.is_none();
             let driver_str = driver.unwrap_or_else(|| "Chưa có trình điều khiển".into());
 
+            // Phân loại thiết bị thiếu driver: an toàn hay cần cảnh báo thật.
+            let (device_status, device_status_text) = if is_missing {
+                let pci_id_str = format!("{:04x}:{:04x}", vendor_id, device_id);
+                let classification = pci_classifier::classify_device(&pci_id_str, &class_hex);
+                match classification {
+                    pci_classifier::PciDeviceStatus::SafeToIgnore => {
+                        ("ignored".into(), "Không hỗ trợ trên Linux".into())
+                    }
+                    _ => {
+                        ("missing".into(), "Thiếu trình điều khiển".into())
+                    }
+                }
+            } else {
+                ("active".into(), "Đã kích hoạt".into())
+            };
+
             let slot_name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
             let pci_str = format!("{:04x}:{:04x}", vendor_id, device_id);
 
@@ -279,8 +310,8 @@ pub fn scan_full_hardware_devices() -> Vec<FullHardwareDevice> {
                 driver: driver_str,
                 version: format!("PCI {}", slot_name),
                 pci_id: Some(pci_str),
-                status: if is_missing { "missing".into() } else { "active".into() },
-                status_text: if is_missing { "Thiếu trình điều khiển".into() } else { "Đã kích hoạt".into() },
+                status: device_status,
+                status_text: device_status_text,
                 details: Some(format!("Class: {}", class_hex)),
             });
         }

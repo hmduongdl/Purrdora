@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { AlertCircle, AlertTriangle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { useHardwareHealthStore } from "../store/useHardwareHealthStore";
 import { HardwareHealthWidget } from "./widgets/HardwareHealthWidget";
 import { FirmwareUpdateList } from "./widgets/FirmwareUpdateList";
@@ -9,7 +9,7 @@ export default function DriversPage({ fullscreen = false }: { fullscreen?: boole
   const mainRef = useRef<HTMLElement>(null);
   const didFetch = useRef(false);
 
-  const { firmwareStatus, orphanDevices, isLoading, error, fetchHardwareHealth } = useHardwareHealthStore();
+  const { firmwareStatus, isLoading, error, fetchHardwareHealth } = useHardwareHealthStore();
 
   useEffect(() => {
     if (!didFetch.current) {
@@ -19,24 +19,12 @@ export default function DriversPage({ fullscreen = false }: { fullscreen?: boole
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const missingDriverCount = orphanDevices.length;
-
   return (
     <main
       ref={mainRef}
       className={`drivers-page${fullscreen ? " drivers-page-fullscreen" : ""}`}
     >
       <div className="drivers-layout">
-        {/* MISSING DRIVER WARNING */}
-        {!isLoading && missingDriverCount > 0 && (
-          <div className="drivers-error-banner border-amber-500/30 bg-amber-500/10 text-amber-300">
-            <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-            <div className="leading-relaxed text-[12px]">
-              <span className="font-bold">Phát hiện {missingDriverCount} thiết bị thiếu driver!</span> Truy cập tab "Thiếu driver" trong mục Chẩn đoán phần cứng để xem chi tiết và cài đặt.
-            </div>
-          </div>
-        )}
-
         {/* ERROR ALERT */}
         {error && (
           <div className="drivers-error-banner">

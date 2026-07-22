@@ -126,10 +126,13 @@ export function OrphanDeviceList() {
                         {/* Right: Status badge */}
                         <div className="flex items-center gap-2 shrink-0">
                           <span
-                            className={`rounded px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${dev.status === "missing"
-                                ? "text-pink-400 bg-pink-500/10 border border-pink-500/20"
-                                : "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
-                              }`}
+                            className={`rounded px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${
+                              dev.status === "ignored"
+                                ? "text-slate-400 bg-slate-500/10 border border-slate-500/20"
+                                : dev.status === "missing"
+                                  ? "text-pink-400 bg-pink-500/10 border border-pink-500/20"
+                                  : "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
+                            }`}
                           >
                             {dev.status_text}
                           </span>
